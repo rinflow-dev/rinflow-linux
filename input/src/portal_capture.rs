@@ -94,6 +94,7 @@ pub async fn run(
     report(CaptureEvent::Ready);
 
     let mut barriers: Vec<Barrier> = Vec::new();
+    let mut armed = Armed::default();
     let mut activation: Option<Option<u32>> = None;
 
     loop {
@@ -101,7 +102,7 @@ pub async fn run(
             command = commands.recv() => match command {
                 Some(CaptureCommand::SetBarriers(new)) => {
                     barriers = new;
-                    if let Err(error) = apply_barriers(&portal, &session, &zones, &barriers).await {
+                    if let Err(error) = armed.apply(&portal, &session, &zones, &barriers).await {
                         report(CaptureEvent::Lost(format!("SetPointerBarriers: {error}")));
                         break;
                     }
@@ -138,6 +139,7 @@ pub async fn run(
                     continue;
                 };
                 activation = Some(signal.activation_id());
+                log::debug!("capture activated: {signal:?}");
                 report(CaptureEvent::Activated { barrier, x, y });
             }
             signal = deactivated.next() => {
@@ -146,6 +148,7 @@ pub async fn run(
                     break;
                 }
                 activation = None;
+                log::debug!("capture deactivated: {signal:?}");
                 report(CaptureEvent::Deactivated);
             }
             signal = disabled.next() => {
@@ -156,7 +159,8 @@ pub async fn run(
                 // The compositor suspended the session (barriers changed,
                 // a display came or went): the same session goes on.
                 activation = None;
-                if let Err(error) = apply_barriers(&portal, &session, &zones, &barriers).await {
+                armed.enabled = false;
+                if let Err(error) = armed.apply(&portal, &session, &zones, &barriers).await {
                     report(CaptureEvent::Lost(format!("Enable after Disabled: {error}")));
                     break;
                 }
@@ -173,7 +177,7 @@ pub async fn run(
                         // The agent answers with barriers for the new edges;
                         // meanwhile the old ones are re-set against the new
                         // zone set so nothing stays suspended.
-                        if let Err(error) = apply_barriers(&portal, &session, &zones, &barriers).await {
+                        if let Err(error) = armed.apply(&portal, &session, &zones, &barriers).await {
                             log::warn!("barriers after zone change: {error}");
                         }
                     }
@@ -195,6 +199,10 @@ pub async fn run(
                         break;
                     }
                 };
+                match &event {
+                    EiEvent::PointerMotion(_) | EiEvent::Frame(_) => log::trace!("capture EIS: {event:?}"),
+                    _ => log::debug!("capture EIS: {event:?}"),
+                }
                 if let Some(lost) = handle_ei_event(event, &context, &report) {
                     report(CaptureEvent::Lost(lost));
                     break;
@@ -293,15 +301,56 @@ fn displays_of(zones: &Zones) -> Vec<Display> {
 /// barriers lies on, spanning the whole edge: KDE's portal refuses a
 /// barrier that does not fill the edge, Mutter accepts either. Which of
 /// the agent's segments a hit falls in is decided here, on activation.
+/// What the compositor has: the barriers last set (and their zone set),
+/// and whether the session is enabled.
+///
+/// Mutter (48) refuses `SetPointerBarriers` while the session is enabled
+/// (every barrier comes back in `failed_barriers`, and the edges stop
+/// working), so a change goes Disable → SetPointerBarriers → Enable. Our
+/// own Disable does not bring a `Disabled` signal; the compositor's does,
+/// and then the session is already disabled. Barriers that did not change
+/// are not set again: the agent asks often (every connection, every
+/// change of who controls whom).
+#[derive(Default)]
+struct Armed {
+    applied: Option<(Vec<Barrier>, u32)>,
+    enabled: bool,
+}
+
+impl Armed {
+    async fn apply(
+        &mut self,
+        portal: &InputCapture,
+        session: &Session<InputCapture>,
+        zones: &Zones,
+        barriers: &[Barrier],
+    ) -> Result<(), ashpd::Error> {
+        let wanted = (barriers.to_vec(), zones.zone_set());
+        if self.enabled && self.applied.as_ref() == Some(&wanted) {
+            return Ok(());
+        }
+        if self.enabled {
+            portal.disable(session, Default::default()).await?;
+            self.enabled = false;
+        }
+        if barriers.is_empty() {
+            self.applied = None;
+            return Ok(());
+        }
+        apply_barriers(portal, session, zones, barriers).await?;
+        self.applied = Some(wanted);
+        self.enabled = true;
+        Ok(())
+    }
+}
+
+/// Sets the barriers on a disabled session and enables it.
 async fn apply_barriers(
     portal: &InputCapture,
     session: &Session<InputCapture>,
     zones: &Zones,
     barriers: &[Barrier],
 ) -> Result<(), ashpd::Error> {
-    if barriers.is_empty() {
-        return portal.disable(session, Default::default()).await;
-    }
     let regions: Vec<(i32, i32, i32, i32)> = zones
         .regions()
         .iter()

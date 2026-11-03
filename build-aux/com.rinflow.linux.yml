@@ -20,7 +20,7 @@ finish-args:
   - --share=network
   # The window finds the agent's socket in the runtime directory.
   - --filesystem=xdg-run/rinflow:create
-  # Steam Deck Gaming Mode: gamescope's own EIS socket (see docs/LINUX_PLAN.md §6.3).
+  # Steam Deck Gaming Mode: gamescope's own EIS socket (see input/src/ei_discover.rs).
   - --filesystem=xdg-run/gamescope-0-ei
 modules:
   - name: rinflow

@@ -5,7 +5,7 @@ in both of its modes. It is two programs, as on Windows:
 
 | Program | Role |
 | --- | --- |
-| `rinflow-agent` | Always running for the signed-in user. Links `rinflow-core` directly, keeps devices connected, captures input through the desktop's `InputCapture` portal when the pointer hits the edge toward a placed device, plays peers' input through libei (the `RemoteDesktop` portal, or gamescope's own EIS socket in Steam Deck's Gaming Mode), and serves a local socket for the window. No GTK, no display required. |
+| `rinflow-agent` | Always running for the signed-in user. Links `rinflow-core` directly, keeps devices connected, captures input through the desktop's `InputCapture` portal when the pointer hits the edge toward a placed device, plays peers' input through libei (the `RemoteDesktop` portal, or gamescope's own EIS socket in Steam Deck's Gaming Mode), shares the clipboard through the `Clipboard` portal of that same session, and serves a local socket for the window. No GTK, no display required. |
 | `rinflow` | The window: GTK 4 + libadwaita. Devices, their arrangement around this screen, pairing, settings. Starts the agent if it is not running; speaks JSON lines to it over `$XDG_RUNTIME_DIR/rinflow/agent.sock`. |
 
 ```
@@ -13,11 +13,13 @@ in both of its modes. It is two programs, as on Windows:
    devices, arrangement,                                                            ├ rinflow-core ── UDP 42420 / QUIC 42421 ──► other devices
    pairing, settings                                                                ├ capture: InputCapture portal + libei      (GNOME ≥ 45, Plasma ≥ 6.1)
                                                                                     ├ emulation: RemoteDesktop portal + libei   │ gamescope EIS socket
-                                                                                    └ logind sleep/wake, network changes
+                                                                                    ├ clipboard: Clipboard portal on that RemoteDesktop session
+                                                                                    └ logind sleep/wake, network changes, the desktop coming and going
 ```
 
-The design, the research behind it and what is deliberately left out are in
-[docs/LINUX_PLAN.md](../docs/LINUX_PLAN.md).
+What has been verified, where, and what has not is in
+[docs/status.md](docs/status.md). How each part works is described in the
+comments at the top of each module.
 
 ## Layout
 
@@ -25,7 +27,8 @@ The design, the research behind it and what is deliberately left out are in
 Cargo.toml                 workspace: agent, input, shell, app
 agent/                     rinflow-agent
   src/main.rs              start-up, the main loop that ties core, backends, driver and IPC together
-  src/backends.rs          keeps capture and emulation running: detects the desktop, starts, restarts after loss
+  src/backends.rs          keeps capture and emulation running: starts, restarts after loss, follows the desktop
+  src/desktop.rs           which desktop is up: the agent's own environment, or the systemd user manager's
   src/driver.rs            this device driving a peer: the core's RemotePointer, keys, buttons, key repeat, Ctrl+Alt+Esc
   src/ipc.rs               the window's socket (rinflow-shell's protocol)
   src/services.rs          what the window may ask for
@@ -36,6 +39,7 @@ agent/                     rinflow-agent
 input/                     rinflow-input: the backends, no agent logic
   src/portal_capture.rs    InputCapture portal + libei receiver; one session for the backend's life
   src/ei_emulation.rs      libei sender; fd from the RemoteDesktop portal or a compositor socket
+  src/portal_clipboard.rs  the Clipboard portal on the emulation session: reads what is copied, offers a peer's clipboard
   src/ei_discover.rs       finding gamescope's `*-ei` socket in the runtime directory
   src/keymap.rs            USB HID usages ↔ evdev key codes, core button numbers ↔ BTN_*
   src/token.rs             the portals' restore tokens (one use each)
@@ -49,8 +53,12 @@ data/                      desktop entry, AppStream metainfo, icons, systemd use
 po/                        translations (zh_CN)
 tests/e2e_two_agents.py    end-to-end test through the real core, two agents on one host
 tests/e2e_crossing.py      the crossing: barrier hit → entry on the peer → motion, keys, buttons, scroll → return → release
+tests/e2e_clipboard.py     the clipboard following the pointer both ways, the setting, password managers' secrets kept home
+tests/e2e_systemd.py       an agent started before the desktop (the user service) finds it through systemd, and lets go of it
+tests/e2e_gnome_clipboard.py  the clipboard on two real Mutter desktops: GTK copies on one, GTK pastes on the other (clipapp.py)
 shell/                     rinflow-shell, shared by agent and app: state snapshot, IPC protocol, settings, trust, identity, arrangement
-tests/fakedesk/            a stand-in desktop: InputCapture + RemoteDesktop portals on D-Bus, EIS servers via reis, a control socket
+tests/fakedesk/            a stand-in desktop: InputCapture, RemoteDesktop and Clipboard portals on D-Bus, EIS servers via reis,
+                           optionally the systemd user manager's environment; a control socket
 tests/e2e_gnome.py         the crossing on two real Mutter (GNOME 46) desktops, headless; a11y_allow.py presses the real permission dialogs,
                            injector (tests/fakedesk/src/bin) moves A's pointer through Mutter's own portal, observer.py records what Mutter B delivers
 build-aux/                 Flatpak manifest, the Ubuntu 24.04 build container
@@ -80,9 +88,15 @@ make run        # debug build, starts the window (which starts the agent)
 make test       # unit tests of the workspace
 make e2e        # two agents on this machine: discovery, pairing, connection, placement sync (no display needed)
 make e2e-crossing  # the crossing itself, with tests/fakedesk standing in for the compositors (needs dbus-daemon)
+make e2e-clipboard # the clipboard both ways through the fake Clipboard portal (needs dbus-daemon)
+make e2e-systemd   # the user service started before the desktop picks it up through systemd (needs dbus-daemon)
 make e2e-gnome     # the crossing on two real GNOME desktops (Mutter headless + GNOME portal backend; see build-aux/Dockerfile.ubuntu-24.04)
+make e2e-gnome-clipboard  # the clipboard between two real GNOME desktops, GTK copying and pasting
 make e2e-persist   # portal permission persistence: first start asks, second start is silent (GNOME 51 / Plasma 6.8: build-aux/Dockerfile.fedora-45)
 make e2e-controlled  # a real desktop (Mutter or KWin, RINFLOW_TEST_DESKTOP) as the controlled device
+# The e2e-gnome family on a desktop machine also needs the `mutter` binary (Debian/Ubuntu: apt install mutter).
+# The tests use their own ports and directories, so they run beside an installed Rinflow; only `make e2e`
+# checks the default port 42421 and needs it free.
 make check      # desktop-file-validate + appstreamcli validate
 sudo make install && systemctl --user enable --now rinflow-agent
 ```
@@ -114,9 +128,25 @@ Logs: `journalctl --user -u rinflow-agent -f` under systemd, or `RUST_LOG=debug
 | Steam Deck, Gaming Mode | **no** (gamescope has no capture interface) | yes (gamescope's EIS socket, no prompt) | Nothing; the agent finds the socket by itself. Pair in Desktop Mode first. |
 | X11 session | not yet | not yet | The window says so. |
 
-**Status: not finished.** Tested only headless in aarch64 containers, with injected input. Plasma as the controlling side currently fails, and nothing has run on real hardware. See [docs/LINUX_STATUS.md](../docs/LINUX_STATUS.md).
+## Clipboard
 
-The design is one systemd user service for the whole login, so that switching the Deck between modes does not restart it. Picking up a new compositor is **not implemented yet**: the agent only re-reads its own environment (see the status document).
+**Share the clipboard** on the Settings page (off by default, as on Windows).
+The clipboard follows the pointer, as in Deskflow: when this device starts
+driving another, that device gets this one's clipboard, and when control
+comes back, its clipboard comes back. Text, HTML and PNG images, up to 8 MiB
+in all; files are not shared yet.
+
+| | How |
+| --- | --- |
+| Access | The `Clipboard` portal, asked for with the emulation backend's `RemoteDesktop` session and granted with it (GNOME ≥ 45, Plasma ≥ 6.2). So the clipboard is there when other devices may control this one; the switch says so otherwise. Not in Gaming Mode (gamescope has no clipboard interface). |
+| Copied here | When another application takes the clipboard, the shared formats are read at once and handed to the core, which sends them when control changes hands. While the setting is off nothing copied is read at all, and peers get an empty clipboard. |
+| From a peer | Announced as this session's selection; an application that pastes gets the data from the agent (`SelectionTransfer`). Text is offered under `text/plain;charset=utf-8`, `UTF8_STRING`, `text/plain`, `STRING` and `TEXT`, so GTK, Qt and X11 programs all find it. |
+| Privacy | What a password manager marks with `x-kde-passwordManagerHint: secret` (KeePassXC, KWallet) never leaves this device. |
+| Quirk handled | xdg-desktop-portal 1.20 sends `SelectionOwnerChanged`'s `mime_types` wrapped in a struct, `(as)`, where the specification has `as`; ashpd drops such signals silently, so the agent reads them off the bus itself and accepts both. |
+
+**Status: first MVP.** On GNOME 48 (Debian 13, x86_64) the crossing, being controlled and the clipboard pass end to end between real Mutter desktops (headless), and the agent and window run on a real GNOME session. Plasma as the controlling side is not verified (it failed in earlier container runs), and interoperation with the Windows and macOS clients has not been run yet. See [docs/status.md](docs/status.md).
+
+The design is one systemd user service for the whole login, so that switching the Deck between modes does not restart it. A service starts before any desktop, so the agent reads the desktop's variables from the systemd user manager as well as from its own environment (desktops push them there with `import-environment`), and follows the desktop as it comes and goes: a Wayland display counts only while its socket is there.
 
 ## Files
 
@@ -129,7 +159,6 @@ The design is one systemd user service for the whole login, so that switching th
 
 ## Not in this version
 
-Clipboard and files, X11 and wlroots backends, the tray icon, the Decky
+Files (copy and paste of files), X11 and wlroots backends, the tray icon, the Decky
 plugin for Gaming Mode, Hyprland through its portal (it leaks file
-descriptors per session in released versions). The order they come in is
-in the plan.
+descriptors per session in released versions).

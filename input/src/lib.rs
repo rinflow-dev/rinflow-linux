@@ -11,6 +11,10 @@
 //!   straight to gamescope's EIS socket in Steam Deck's Gaming Mode. The
 //!   same code plays the events either way.
 //!
+//! - **Clipboard**: rides on the emulation backend's RemoteDesktop session
+//!   (`org.freedesktop.portal.Clipboard`), so it is there exactly when a
+//!   peer can drive this desktop through the portal.
+//!
 //! Geometry is in logical points, the core's unit; the portals speak logical
 //! pixels too, so nothing is scaled here.
 
@@ -24,6 +28,8 @@ pub mod ei_discover;
 pub mod ei_emulation;
 #[cfg(target_os = "linux")]
 pub mod portal_capture;
+#[cfg(target_os = "linux")]
+pub mod portal_clipboard;
 #[cfg(target_os = "linux")]
 pub mod token;
 
@@ -98,4 +104,34 @@ pub enum EmulationEvent {
     Prompting,
     Denied(String),
     Lost(String),
+}
+
+/// What the agent tells the clipboard of the emulation session.
+#[derive(Debug)]
+pub enum ClipboardCommand {
+    /// A peer's clipboard becomes this desktop's, offered to applications
+    /// until something here is copied.
+    Offer(rinflow_core::Clipboard),
+    /// Share this desktop's clipboard (read what is copied and report it),
+    /// or stop: while off, nothing copied here is read at all. Off until
+    /// told otherwise; turning it on reports the current selection.
+    Enable(bool),
+}
+
+/// What the clipboard of the emulation session reports.
+#[derive(Debug, PartialEq)]
+pub enum ClipboardEvent {
+    /// The desktop gave this session its clipboard (`true`), or the session
+    /// is over (`false`).
+    Available(bool),
+    /// Something was copied on this desktop: what of it is shared, most
+    /// specific first (empty for a password manager's secret, or nothing
+    /// Rinflow shares).
+    Changed(rinflow_core::Clipboard),
+}
+
+/// The emulation backend's end of the clipboard channels.
+pub struct ClipboardLink {
+    pub commands: tokio::sync::mpsc::UnboundedReceiver<ClipboardCommand>,
+    pub events: tokio::sync::mpsc::UnboundedSender<ClipboardEvent>,
 }

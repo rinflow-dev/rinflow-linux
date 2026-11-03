@@ -1452,6 +1452,7 @@ dependencies = [
  "reis",
  "rinflow-core",
  "tokio",
+ "zbus",
 ]
 
 [[package]]

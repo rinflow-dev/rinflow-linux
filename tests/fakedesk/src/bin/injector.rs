@@ -33,7 +33,7 @@ fn main() {
         let (events_tx, mut events_rx) = mpsc::unbounded_channel::<EmulationEvent>();
         let (_shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         tokio::task::spawn_local(async move {
-            rinflow_input::ei_emulation::run(source, &state_dir, input_rx, events_tx, shutdown_rx, std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0))).await;
+            rinflow_input::ei_emulation::run(source, &state_dir, input_rx, events_tx, shutdown_rx, std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)), None).await;
             log::info!("emulation backend ended");
         });
         let ready = Rc::new(Cell::new(false));

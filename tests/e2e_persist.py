@@ -37,7 +37,7 @@ ic_version = subprocess.run(["dbus-send", "--session", "--print-reply", "--dest=
 print("  InputCapture portal version:", ic_version.strip().split()[-1] if ic_version else "?")
 
 ready = lambda s: s["input"]["capture"]["state"] == "ready" and s["input"]["emulation"]["state"] == "ready"
-a = Agent("pa", S.home, S.runtime, AGENT, env=S.env, fresh=False)
+a = Agent("pa", S.home, S.runtime, AGENT, port=42411, env=S.env, fresh=False)
 step("first start: GNOME asks", a.wait(lambda s: "prompting" in (s["input"]["capture"]["state"], s["input"]["emulation"]["state"]), 15))
 print("  pressed:", S.allow_until(a, ready))
 step("first start: ready after allowing", a.state is not None and ready(a.state), json.dumps(a.state["input"]))
@@ -48,7 +48,7 @@ capture_v2 = "input-capture.token" in tokens
 print("  InputCapture v2 token:", capture_v2)
 a.quit()
 
-a = Agent("pa2", S.home, S.runtime, AGENT, env=S.env, fresh=False)
+a = Agent("pa2", S.home, S.runtime, AGENT, port=42411, env=S.env, fresh=False)
 seen = set()
 end = time.time() + 20
 while time.time() < end and not (a.state and ready(a.state)):

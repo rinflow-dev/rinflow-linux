@@ -14,8 +14,12 @@ class Agent:
         self.env = dict(os.environ, HOME=home, XDG_RUNTIME_DIR=runtime,
                         XDG_DATA_HOME=f"{home}/.local/share", XDG_STATE_HOME=f"{home}/.local/state",
                         RUST_LOG="info", LANG="en_US.UTF-8")
-        if env:
-            self.env.update(env)
+        for key, value in (env or {}).items():
+            # None removes a variable (an agent started before any desktop).
+            if value is None:
+                self.env.pop(key, None)
+            else:
+                self.env[key] = value
         os.makedirs(runtime, exist_ok=True)
         data = f"{home}/.local/share/rinflow"
         os.makedirs(data, exist_ok=True)

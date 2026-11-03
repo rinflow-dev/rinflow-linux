@@ -9,6 +9,15 @@
 //! Commands: {"cmd":"state"}, {"cmd":"activate","barrier":1,"x":1920,"y":500},
 //! {"cmd":"motion","dx":10,"dy":0}, {"cmd":"key","code":30,"down":true},
 //! {"cmd":"button","code":272,"down":true}, {"cmd":"scroll","dx":0,"dy":15}.
+//!
+//! The clipboard (`org.freedesktop.portal.Clipboard` on the RemoteDesktop
+//! session): {"cmd":"copy","formats":[["text/plain", "<hex>"], …]} is an
+//! application here copying; {"cmd":"paste","mime":"text/plain"} is one
+//! pasting what the agent offers, answered in `pastes` of the state.
+//!
+//! With `--systemd` it also stands in for the systemd user manager, whose
+//! environment a desktop updates as it starts:
+//! {"cmd":"systemd_env","env":["WAYLAND_DISPLAY=wayland-1", …]}.
 
 use reis::eis;
 use reis::handshake::EisHandshaker;
@@ -48,6 +57,8 @@ struct Snapshot {
     zones: Vec<(u32, u32, i32, i32)>,
     barriers: Vec<(u32, i32, i32, i32, i32)>,
     barrier_sets: u32,
+    /// SetPointerBarriers calls refused because the session was enabled.
+    refused_sets: u32,
     enabled: bool,
     enables: u32,
     disables: u32,
@@ -58,6 +69,23 @@ struct Snapshot {
     releases: Vec<(Option<u32>, Option<(f64, f64)>)>,
     received: Vec<serde_json::Value>,
     restore_token_seen: Option<String>,
+    /// The agent asked for the clipboard with its RemoteDesktop session.
+    clipboard_requested: bool,
+    /// What the agent last announced with SetSelection, and how often.
+    offered_types: Vec<String>,
+    selection_sets: u32,
+    /// SelectionRead calls, by MIME type.
+    reads: Vec<String>,
+    /// Pastes by serial: MIME type, what the agent wrote (hex), and its
+    /// SelectionWriteDone.
+    pastes: HashMap<u32, Paste>,
+}
+
+#[derive(Default, Serialize, Clone)]
+struct Paste {
+    mime: String,
+    data: String,
+    done: Option<bool>,
 }
 
 struct State {
@@ -66,6 +94,21 @@ struct State {
     zone_set: u32,
     receiver: Option<mpsc::UnboundedSender<Inject>>,
     new_eis: mpsc::UnboundedSender<(Kind, UnixStream)>,
+    /// What applications here copied: (MIME type, bytes).
+    desktop_clipboard: Vec<(String, Vec<u8>)>,
+    transfer_serial: u32,
+    /// The systemd user manager's `Environment` (with `--systemd`).
+    systemd_env: Vec<String>,
+}
+
+struct SystemdManager(Shared);
+
+#[interface(name = "org.freedesktop.systemd1.Manager")]
+impl SystemdManager {
+    #[zbus(property)]
+    fn environment(&self) -> Vec<String> {
+        self.0.lock().unwrap().systemd_env.clone()
+    }
 }
 
 type Shared = Arc<Mutex<State>>;
@@ -161,6 +204,23 @@ struct Empty {}
 struct StartResults {
     devices: u32,
     restore_token: String,
+    clipboard_enabled: bool,
+}
+
+#[derive(SerializeDict, Type)]
+#[zvariant(signature = "dict")]
+struct OwnerChanged {
+    mime_types: Vec<String>,
+    session_is_owner: bool,
+}
+
+/// As xdg-desktop-portal 1.20 really sends it: the types wrapped in a
+/// struct, `(as)`, where the specification has `as`.
+#[derive(SerializeDict, Type)]
+#[zvariant(signature = "dict")]
+struct OwnerChangedAsSent {
+    mime_types: (Vec<String>,),
+    session_is_owner: bool,
 }
 
 #[derive(SerializeDict, Type)]
@@ -243,14 +303,20 @@ impl InputCaptureIface {
             parsed.push((id, x1, y1, x2, y2));
         }
         log::info!("InputCapture.SetPointerBarriers {parsed:?}");
-        {
+        let failed_barriers = {
             let mut state = self.0.lock().unwrap();
-            state.snapshot.barriers = parsed;
-            state.snapshot.barrier_sets += 1;
-            // The portal suspends the session until Enable.
-            state.snapshot.enabled = false;
-        }
-        respond(connection, request.clone(), BarriersResults { failed_barriers: Vec::new() });
+            if state.snapshot.enabled {
+                // As Mutter (48) does: no barriers while the session is
+                // enabled; every one comes back refused, the old ones stay.
+                state.snapshot.refused_sets += 1;
+                parsed.iter().map(|b| b.0).collect()
+            } else {
+                state.snapshot.barriers = parsed;
+                state.snapshot.barrier_sets += 1;
+                Vec::new()
+            }
+        };
+        respond(connection, request.clone(), BarriersResults { failed_barriers });
         request
     }
 
@@ -358,7 +424,8 @@ impl RemoteDesktopIface {
         options: HashMap<String, OwnedValue>,
     ) -> OwnedObjectPath {
         let request = request_path(&header, &options, "handle_token");
-        respond(connection, request.clone(), StartResults { devices: 3, restore_token: RESTORE_TOKEN.into() });
+        let clipboard_enabled = self.0.lock().unwrap().snapshot.clipboard_requested;
+        respond(connection, request.clone(), StartResults { devices: 3, restore_token: RESTORE_TOKEN.into(), clipboard_enabled });
         request
     }
 
@@ -373,6 +440,102 @@ impl RemoteDesktopIface {
         let _ = state.new_eis.send((Kind::Emulation, ours));
         Ok(zbus::zvariant::OwnedFd::from(std::os::fd::OwnedFd::from(theirs)))
     }
+}
+
+struct ClipboardIface(Shared);
+
+fn pipe_fd<F: Into<std::os::fd::OwnedFd>>(end: F) -> zbus::zvariant::OwnedFd {
+    zbus::zvariant::OwnedFd::from(end.into())
+}
+
+#[interface(name = "org.freedesktop.portal.Clipboard")]
+impl ClipboardIface {
+    #[zbus(property, name = "version")]
+    fn version(&self) -> u32 {
+        1
+    }
+
+    async fn request_clipboard(&self, _session: OwnedObjectPath, _options: HashMap<String, OwnedValue>) {
+        log::info!("Clipboard.RequestClipboard");
+        self.0.lock().unwrap().snapshot.clipboard_requested = true;
+    }
+
+    async fn set_selection(
+        &self,
+        #[zbus(connection)] connection: &Connection,
+        session: OwnedObjectPath,
+        options: HashMap<String, OwnedValue>,
+    ) {
+        let types: Vec<String> = options
+            .get("mime_types")
+            .and_then(|v| <Vec<String>>::try_from(v.clone()).ok())
+            .unwrap_or_default();
+        log::info!("Clipboard.SetSelection {types:?}");
+        {
+            let mut state = self.0.lock().unwrap();
+            state.snapshot.offered_types = types.clone();
+            state.snapshot.selection_sets += 1;
+            state.desktop_clipboard.clear();
+        }
+        // As Mutter does: the new owner is announced to the session too.
+        let _ = connection
+            .emit_signal(
+                None::<zbus::names::BusName<'_>>,
+                DESKTOP_PATH,
+                "org.freedesktop.portal.Clipboard",
+                "SelectionOwnerChanged",
+                &(session, OwnerChanged { mime_types: types, session_is_owner: true }),
+            )
+            .await;
+    }
+
+    async fn selection_read(&self, _session: OwnedObjectPath, mime_type: String) -> zbus::fdo::Result<zbus::zvariant::OwnedFd> {
+        let data = {
+            let mut state = self.0.lock().unwrap();
+            state.snapshot.reads.push(mime_type.clone());
+            state.desktop_clipboard.iter().find(|(m, _)| *m == mime_type).map(|(_, d)| d.clone())
+        };
+        let Some(data) = data else {
+            return Err(zbus::fdo::Error::Failed(format!("{mime_type} not offered")));
+        };
+        let (reader, mut writer) = std::io::pipe().map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let _ = writer.write_all(&data);
+        });
+        Ok(pipe_fd(reader))
+    }
+
+    async fn selection_write(&self, _session: OwnedObjectPath, serial: u32) -> zbus::fdo::Result<zbus::zvariant::OwnedFd> {
+        let (mut reader, writer) = std::io::pipe().map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+        let shared = self.0.clone();
+        std::thread::spawn(move || {
+            use std::io::Read;
+            let mut data = Vec::new();
+            let _ = reader.read_to_end(&mut data);
+            if let Some(paste) = shared.lock().unwrap().snapshot.pastes.get_mut(&serial) {
+                paste.data = hex(&data);
+            }
+        });
+        Ok(pipe_fd(writer))
+    }
+
+    async fn selection_write_done(&self, _session: OwnedObjectPath, serial: u32, success: bool) {
+        log::info!("Clipboard.SelectionWriteDone {serial} {success}");
+        if let Some(paste) = self.0.lock().unwrap().snapshot.pastes.get_mut(&serial) {
+            paste.done = Some(success);
+        }
+    }
+}
+
+fn hex(data: &[u8]) -> String {
+    data.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn unhex(text: &str) -> Vec<u8> {
+    (0..text.len() / 2)
+        .filter_map(|i| u8::from_str_radix(&text[i * 2..i * 2 + 2], 16).ok())
+        .collect()
 }
 
 /// One EIS connection: the handshake, a seat, devices on `Bind`, then
@@ -566,6 +729,58 @@ async fn handle_command(line: &str, shared: &Shared, connection: &Connection) ->
             let sent = shared.lock().unwrap().receiver.as_ref().is_some_and(|tx| tx.send(event).is_ok());
             serde_json::json!({"ok": sent})
         }
+        "copy" => {
+            let formats: Vec<(String, Vec<u8>)> = command["formats"]
+                .as_array()
+                .map(|formats| {
+                    formats
+                        .iter()
+                        .filter_map(|f| Some((f[0].as_str()?.to_owned(), unhex(f[1].as_str()?))))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let (session, types) = {
+                let mut state = shared.lock().unwrap();
+                state.desktop_clipboard = formats.clone();
+                (state.snapshot.emulation_session.clone(), formats.iter().map(|(m, _)| m.clone()).collect::<Vec<_>>())
+            };
+            let Some(session) = session else {
+                return serde_json::json!({"ok": false, "error": "no remote desktop session"});
+            };
+            let path = OwnedObjectPath::try_from(session).unwrap();
+            let result = connection
+                .emit_signal(None::<zbus::names::BusName<'_>>, DESKTOP_PATH, "org.freedesktop.portal.Clipboard", "SelectionOwnerChanged",
+                    &(path, OwnerChangedAsSent { mime_types: (types,), session_is_owner: false }))
+                .await;
+            serde_json::json!({"ok": result.is_ok()})
+        }
+        "systemd_env" => {
+            let env: Vec<String> = command["env"]
+                .as_array()
+                .map(|values| values.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+                .unwrap_or_default();
+            log::info!("systemd environment: {env:?}");
+            shared.lock().unwrap().systemd_env = env;
+            serde_json::json!({"ok": true})
+        }
+        "paste" => {
+            let mime = command["mime"].as_str().unwrap_or("text/plain;charset=utf-8").to_owned();
+            let (session, serial) = {
+                let mut state = shared.lock().unwrap();
+                state.transfer_serial += 1;
+                let serial = state.transfer_serial;
+                state.snapshot.pastes.insert(serial, Paste { mime: mime.clone(), ..Paste::default() });
+                (state.snapshot.emulation_session.clone(), serial)
+            };
+            let Some(session) = session else {
+                return serde_json::json!({"ok": false, "error": "no remote desktop session"});
+            };
+            let path = OwnedObjectPath::try_from(session).unwrap();
+            let result = connection
+                .emit_signal(None::<zbus::names::BusName<'_>>, DESKTOP_PATH, "org.freedesktop.portal.Clipboard", "SelectionTransfer", &(path, mime, serial))
+                .await;
+            serde_json::json!({"ok": result.is_ok(), "serial": serial})
+        }
         other => serde_json::json!({"ok": false, "error": format!("unknown command {other}")}),
     }
 }
@@ -586,11 +801,13 @@ fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let mut control_path = None;
     let mut zones = vec![(1920, 1080, 0, 0)];
+    let mut systemd = false;
     let mut iter = arguments.iter();
     while let Some(argument) = iter.next() {
         match argument.as_str() {
             "--control" => control_path = iter.next().cloned(),
             "--zones" => zones = parse_zones(iter.next().map(String::as_str).unwrap_or("")),
+            "--systemd" => systemd = true,
             other => {
                 eprintln!("fakedesk: unknown argument {other}");
                 std::process::exit(2);
@@ -608,6 +825,9 @@ fn main() {
             zone_set: 1,
             receiver: None,
             new_eis,
+            desktop_clipboard: Vec::new(),
+            transfer_serial: 0,
+            systemd_env: Vec::new(),
         }));
         let connection = zbus::connection::Builder::session()
             .expect("session bus")
@@ -617,10 +837,16 @@ fn main() {
             .expect("serve")
             .serve_at(DESKTOP_PATH, RemoteDesktopIface(shared.clone()))
             .expect("serve")
+            .serve_at(DESKTOP_PATH, ClipboardIface(shared.clone()))
+            .expect("serve")
             .build()
             .await
             .expect("connect to the session bus");
         log::info!("serving org.freedesktop.portal.Desktop as {:?}", connection.unique_name().map(|n| n.to_string()));
+        if systemd {
+            connection.object_server().at("/org/freedesktop/systemd1", SystemdManager(shared.clone())).await.expect("serve systemd");
+            connection.request_name("org.freedesktop.systemd1").await.expect("systemd name");
+        }
         let _ = std::fs::remove_file(&control_path);
         let listener = tokio::net::UnixListener::bind(&control_path).expect("control socket");
         tokio::task::spawn_local(control(listener, shared.clone(), connection.clone()));

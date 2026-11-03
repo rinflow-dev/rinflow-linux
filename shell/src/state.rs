@@ -127,6 +127,10 @@ impl Default for BackendView {
 pub struct InputView {
     pub capture: BackendView,
     pub emulation: BackendView,
+    /// The desktop gave the emulation session its clipboard, so it can be
+    /// shared (with the `clipboard` setting on).
+    #[serde(default)]
+    pub clipboard: bool,
 }
 
 /// Everything the window renders.
@@ -247,6 +251,11 @@ impl SharedState {
     pub fn set_emulation(&self, view: BackendView) {
         self.0
             .send_if_modified(|snapshot| replace(&mut snapshot.input.emulation, view));
+    }
+
+    pub fn set_clipboard_available(&self, available: bool) {
+        self.0
+            .send_if_modified(|snapshot| replace(&mut snapshot.input.clipboard, available));
     }
 
     pub fn clear_error(&self) {

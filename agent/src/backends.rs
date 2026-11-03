@@ -6,7 +6,10 @@
 use rinflow_core::LcInputEvent;
 use rinflow_shell::i18n::tr;
 use rinflow_shell::state::{BackendState, BackendView, SharedState};
-use rinflow_input::{CaptureCommand, CaptureEvent, EisSource, EmulationEvent};
+use rinflow_input::{
+    CaptureCommand, CaptureEvent, ClipboardCommand, ClipboardEvent, ClipboardLink, EisSource,
+    EmulationEvent,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
@@ -19,35 +22,22 @@ const LONGEST_RETRY: Duration = Duration::from_secs(60);
 /// How often to look for a compositor socket while nothing plays input.
 const RESCAN: Duration = Duration::from_secs(5);
 
-/// The desktop this agent runs on, as far as input is concerned.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Desktop {
-    /// A Wayland session with a portal (GNOME, KDE, COSMIC…).
-    Wayland,
-    /// gamescope (Steam Deck's Gaming Mode): its own EIS socket, no capture.
-    Gamescope,
-    /// An X11 session: nothing yet.
-    X11,
-    /// No display at all.
-    None,
-}
+use crate::desktop::{self, Desktop};
 
-pub fn detect_desktop() -> Desktop {
-    let gamescope_env = std::env::var_os("GAMESCOPE_WAYLAND_DISPLAY").is_some()
-        || std::env::var("WAYLAND_DISPLAY").is_ok_and(|d| d.starts_with("gamescope"));
-    if gamescope_env {
-        return Desktop::Gamescope;
-    }
-    if std::env::var_os("WAYLAND_DISPLAY").is_some() {
-        return Desktop::Wayland;
-    }
-    if rinflow_input::ei_discover::find().is_some() {
-        return Desktop::Gamescope;
-    }
-    if std::env::var_os("DISPLAY").is_some() {
-        return Desktop::X11;
-    }
-    Desktop::None
+/// The desktop now, from the agent's own environment and the systemd user
+/// manager's (see `desktop.rs`).
+async fn detect_desktop(bus: Option<&zbus::Connection>) -> Desktop {
+    let manager = match bus {
+        Some(bus) => desktop::manager_variables(bus).await,
+        None => None,
+    };
+    desktop::decide(
+        &desktop::own_variables(),
+        manager.as_ref(),
+        &desktop::runtime_directory(),
+        desktop::is_socket,
+        rinflow_input::ei_discover::find().is_some(),
+    )
 }
 
 struct Capture {
@@ -59,6 +49,8 @@ struct Emulation {
     input: mpsc::UnboundedSender<LcInputEvent>,
     shutdown: Option<oneshot::Sender<()>>,
     task: JoinHandle<()>,
+    /// The session's clipboard (portal sessions only).
+    clipboard: Option<mpsc::UnboundedSender<ClipboardCommand>>,
 }
 
 struct Retry {
@@ -97,6 +89,11 @@ pub struct Backends {
     emulation: Option<Emulation>,
     emulation_events: mpsc::UnboundedSender<EmulationEvent>,
     emulation_retry: Retry,
+    clipboard_events: mpsc::UnboundedSender<ClipboardEvent>,
+    /// The user shares the clipboard: each new emulation session is told.
+    clipboard_enabled: bool,
+    /// The session bus, for the systemd manager's environment.
+    bus: Option<zbus::Connection>,
     last_scan: Instant,
     /// When a peer's input was last played here (Unix milliseconds; 0
     /// never): an edge the pointer hits right after that is the peer's
@@ -113,8 +110,15 @@ impl Backends {
         state_directory: PathBuf,
         capture_events: mpsc::UnboundedSender<CaptureEvent>,
         emulation_events: mpsc::UnboundedSender<EmulationEvent>,
+        clipboard_events: mpsc::UnboundedSender<ClipboardEvent>,
     ) -> Self {
-        let desktop = detect_desktop();
+        let desktop = desktop::decide(
+            &desktop::own_variables(),
+            None,
+            &desktop::runtime_directory(),
+            desktop::is_socket,
+            rinflow_input::ei_discover::find().is_some(),
+        );
         log::info!("desktop: {desktop:?}");
         let backends = Self {
             state,
@@ -126,7 +130,11 @@ impl Backends {
             emulation: None,
             emulation_events,
             emulation_retry: Retry::new(),
-            last_scan: Instant::now(),
+            clipboard_events,
+            clipboard_enabled: false,
+            bus: None,
+            // The first poll looks at the systemd manager's environment too.
+            last_scan: Instant::now() - RESCAN,
             last_played: Arc::new(AtomicU64::new(0)),
             last_entry: None,
         };
@@ -151,6 +159,21 @@ impl Backends {
         }
     }
 
+    /// Offers a peer's clipboard to this desktop's applications.
+    pub fn offer_clipboard(&self, clipboard: rinflow_core::Clipboard) {
+        if let Some(commands) = self.emulation.as_ref().and_then(|e| e.clipboard.as_ref()) {
+            let _ = commands.send(ClipboardCommand::Offer(clipboard));
+        }
+    }
+
+    /// Shares this desktop's clipboard, or stops reading it at all.
+    pub fn set_clipboard_enabled(&mut self, enabled: bool) {
+        self.clipboard_enabled = enabled;
+        if let Some(commands) = self.emulation.as_ref().and_then(|e| e.clipboard.as_ref()) {
+            let _ = commands.send(ClipboardCommand::Enable(enabled));
+        }
+    }
+
     /// Plays the peer's entry move again. When the pointer sat on one of
     /// this device's own edges (Mutter activates a barrier even for a warp
     /// off it), the compositor handed the entry to this device's capture
@@ -166,12 +189,15 @@ impl Backends {
 
     /// Starts whatever is due. Call about once a second; returns true when
     /// a capture backend was just started (its command channel is new).
-    pub fn poll(&mut self) -> bool {
+    pub async fn poll(&mut self) -> bool {
         let now = Instant::now();
         let mut capture_started = false;
         if self.desktop == Desktop::None || now.duration_since(self.last_scan) >= RESCAN {
             self.last_scan = now;
-            let desktop = detect_desktop();
+            if self.bus.is_none() {
+                self.bus = zbus::Connection::session().await.ok();
+            }
+            let desktop = detect_desktop(self.bus.as_ref()).await;
             if desktop != self.desktop {
                 log::info!("desktop changed: {:?} → {desktop:?}", self.desktop);
                 self.desktop = desktop;
@@ -351,11 +377,21 @@ impl Backends {
         let events = self.emulation_events.clone();
         let directory = self.state_directory.clone();
         let last_played = self.last_played.clone();
+        // The clipboard comes with the RemoteDesktop portal's session;
+        // gamescope has none to give.
+        let (clipboard, link) = if source == EisSource::Portal {
+            let (commands, commands_rx) = mpsc::unbounded_channel();
+            let _ = commands.send(ClipboardCommand::Enable(self.clipboard_enabled));
+            let link = ClipboardLink { commands: commands_rx, events: self.clipboard_events.clone() };
+            (Some(commands), Some(link))
+        } else {
+            (None, None)
+        };
         log::info!("starting emulation from {source:?}");
         let task = tokio::task::spawn_local(async move {
-            rinflow_input::ei_emulation::run(source, &directory, receiver, events, shutdown_rx, last_played).await;
+            rinflow_input::ei_emulation::run(source, &directory, receiver, events, shutdown_rx, last_played, link).await;
         });
-        self.emulation = Some(Emulation { input, shutdown: Some(shutdown), task });
+        self.emulation = Some(Emulation { input, shutdown: Some(shutdown), task, clipboard });
         self.state.set_emulation(BackendView {
             state: BackendState::Waiting,
             backend: self.emulation_backend_name(),
@@ -364,6 +400,7 @@ impl Backends {
     }
 
     fn stop_emulation(&mut self) {
+        self.state.set_clipboard_available(false);
         if let Some(mut emulation) = self.emulation.take() {
             if let Some(shutdown) = emulation.shutdown.take() {
                 let _ = shutdown.send(());

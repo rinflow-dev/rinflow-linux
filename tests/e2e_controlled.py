@@ -10,7 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from agentclient import Agent, Steps
 from e2e_gnome import Stack, DESKTOP, events
-from e2e_crossing import Fake, session_bus
+from fakedeskclient import Fake, session_bus
 
 AGENT, FAKEDESK = sys.argv[1], sys.argv[2]
 step = Steps()
@@ -24,8 +24,8 @@ B.spawn(["python3", f"{HERE}/observer.py", f"/tmp/gn-c/observer.log"], "observer
 step("observer window up", any(e["type"] == "ready" for e in (time.sleep(4), events("/tmp/gn-c/observer.log"))[1]))
 
 bus_a = session_bus()
-fake_a = Fake("ctl-fake-a", bus_a, "/tmp/ctl-fake-a.sock", "1920x1080")
-a = Agent("ca", "/tmp/home-ca", "/tmp/run-ca", AGENT, env={"DBUS_SESSION_BUS_ADDRESS": bus_a, "WAYLAND_DISPLAY": "wayland-fake"})
+fake_a = Fake(FAKEDESK, "ctl-fake-a", bus_a, "/tmp/ctl-fake-a.sock", "1920x1080")
+a = Agent("ca", "/tmp/home-ca", "/tmp/run-ca", AGENT, port=42411, env={"DBUS_SESSION_BUS_ADDRESS": bus_a, "WAYLAND_DISPLAY": "wayland-fake"})
 ida, idb = a.state["device_id"], b.state["device_id"]
 step("controller ready", a.wait(lambda s: s["input"]["capture"]["state"] == "ready", 20))
 step("discovery", a.wait(lambda s: any(p["id"] == idb for p in s["peers"])) and b.wait(lambda s: any(p["id"] == ida for p in s["peers"])))

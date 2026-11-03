@@ -9,8 +9,9 @@
 
 use crate::ei_common::{handshake, now_micros};
 use crate::keymap::{evdev_button, evdev_code};
+use crate::portal_clipboard;
 use crate::token::TokenFile;
-use crate::{EisSource, EmulationEvent};
+use crate::{ClipboardLink, EisSource, EmulationEvent};
 use ashpd::desktop::remote_desktop::{DeviceType, RemoteDesktop, SelectDevicesOptions};
 use ashpd::desktop::{PersistMode, Session};
 use futures_util::StreamExt;
@@ -23,6 +24,7 @@ use reis::ei;
 use reis::event::{Connection, DeviceCapability, EiEvent};
 use std::collections::HashSet;
 use std::os::fd::OwnedFd;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::os::unix::net::UnixStream;
@@ -61,7 +63,8 @@ struct Devices {
 }
 
 /// Runs until `shutdown` fires, or until the connection is lost or denied
-/// (reported as the last event).
+/// (reported as the last event). With `clipboard`, a portal session also
+/// asks for the desktop's clipboard and serves it for as long as it lasts.
 pub async fn run(
     source: EisSource,
     state_directory: &Path,
@@ -69,20 +72,21 @@ pub async fn run(
     events: mpsc::UnboundedSender<EmulationEvent>,
     mut shutdown: oneshot::Receiver<()>,
     last_played: Arc<AtomicU64>,
+    clipboard: Option<ClipboardLink>,
 ) {
     let report = |event: EmulationEvent| {
         let _ = events.send(event);
     };
-    let (fd, session) = match &source {
-        EisSource::Portal => match portal_fd(state_directory, &report).await {
-            Ok((fd, session)) => (fd, Some(session)),
+    let (fd, session, clipboard_portal) = match &source {
+        EisSource::Portal => match portal_fd(state_directory, &report, clipboard.is_some()).await {
+            Ok((fd, session, portal)) => (fd, Some(Rc::new(session)), portal),
             Err(event) => {
                 report(event);
                 return;
             }
         },
         EisSource::Socket(path) => match UnixStream::connect(path) {
-            Ok(stream) => (OwnedFd::from(stream), None),
+            Ok(stream) => (OwnedFd::from(stream), None, None),
             Err(error) => {
                 report(EmulationEvent::Lost(format!("{}: {error}", path.display())));
                 return;
@@ -99,6 +103,17 @@ pub async fn run(
             }
         };
     report(EmulationEvent::Ready);
+    // The clipboard has its own task: a slow application handing over a
+    // large image must not hold up the peer's pointer.
+    let clipboard_task = match (clipboard_portal, &session, clipboard) {
+        (Some(portal), Some(session), Some(link)) => Some(tokio::task::spawn_local(portal_clipboard::serve(
+            portal,
+            session.clone(),
+            link.commands,
+            link.events,
+        ))),
+        _ => None,
+    };
 
     let mut devices = Devices::default();
     let mut held_keys: HashSet<u32> = HashSet::new();
@@ -144,21 +159,26 @@ pub async fn run(
     // Nothing stays pressed on this device after the peer is gone.
     release_all(&mut devices, &connection, &mut held_keys, &mut held_buttons);
     let _ = context.flush();
+    if let Some(task) = clipboard_task {
+        task.abort();
+    }
     close(session).await;
 }
 
-async fn close(session: Option<Session<RemoteDesktop>>) {
+async fn close(session: Option<Rc<Session<RemoteDesktop>>>) {
     if let Some(session) = session {
         let _ = session.close().await;
     }
 }
 
 /// The RemoteDesktop portal's EIS connection, asking the user unless a
-/// restore token spares them.
+/// restore token spares them; with `want_clipboard`, also the clipboard
+/// portal on the same session, if the desktop grants it.
 async fn portal_fd(
     state_directory: &Path,
     report: &impl Fn(EmulationEvent),
-) -> Result<(OwnedFd, Session<RemoteDesktop>), EmulationEvent> {
+    want_clipboard: bool,
+) -> Result<(OwnedFd, Session<RemoteDesktop>, Option<ashpd::desktop::clipboard::Clipboard>), EmulationEvent> {
     let token = TokenFile::new(state_directory, "remote-desktop");
     let portal = RemoteDesktop::new()
         .await
@@ -180,6 +200,12 @@ async fn portal_fd(
         let _ = session.close().await;
         return Err(classify(error, "SelectDevices"));
     }
+    // The clipboard is asked for with the devices, before Start.
+    let clipboard = if want_clipboard {
+        portal_clipboard::request(&session).await
+    } else {
+        None
+    };
     if restore.is_none() {
         report(EmulationEvent::Prompting);
     }
@@ -199,8 +225,15 @@ async fn portal_fd(
         Some(new) => token.write(new),
         None => token.forget(),
     }
+    let clipboard = clipboard.filter(|_| {
+        let enabled = started.is_clipboard_enabled();
+        if !enabled {
+            log::info!("the desktop started the session without its clipboard");
+        }
+        enabled
+    });
     match portal.connect_to_eis(&session, Default::default()).await {
-        Ok(fd) => Ok((fd, session)),
+        Ok(fd) => Ok((fd, session, clipboard)),
         Err(error) => {
             let _ = session.close().await;
             Err(EmulationEvent::Lost(format!("ConnectToEIS: {error}")))

@@ -154,7 +154,7 @@ if __name__ == "__main__":
             ["dbus-send", "--session", "--print-reply", "--dest=org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus.ListNames"],
             env=s.env).decode() for s in (A, B)))
 
-    a = Agent("ga", A.home, A.runtime, AGENT, env=A.env, fresh=False)
+    a = Agent("ga", A.home, A.runtime, AGENT, port=42441, env=A.env, fresh=False)
     b = Agent("gb", B.home, B.runtime, AGENT, port=42431, env=B.env, fresh=False)
     ida, idb = a.state["device_id"], b.state["device_id"]
     prompting = lambda s: s["input"]["capture"]["state"] == "prompting" or s["input"]["emulation"]["state"] == "prompting"

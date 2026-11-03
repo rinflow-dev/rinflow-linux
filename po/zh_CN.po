@@ -76,6 +76,18 @@ msgstr "关闭后两个方向都不再穿越；设备保持连接。"
 msgid "Only paired devices"
 msgstr "仅允许已配对的设备"
 
+msgid "Share the clipboard"
+msgstr "同步剪贴板"
+
+msgid "Text and images copied here go along when the pointer moves to another device, and come back with it."
+msgstr "在本机复制的文字和图片会随指针一起移到另一台设备，回来时也会带回来。"
+
+msgid "This desktop doesn't share its clipboard with Rinflow. It needs the clipboard portal (GNOME 45 or Plasma 6.2 and newer)."
+msgstr "此桌面没有向 Rinflow 提供剪贴板，需要剪贴板门户（GNOME 45 或 Plasma 6.2 及更新版本）。"
+
+msgid "Available once other devices may control this one: the clipboard comes with that permission."
+msgstr "允许其他设备控制本机后即可使用：剪贴板随这项权限一起授予。"
+
 msgid "New devices must pair with a six-digit code first."
 msgstr "新设备需要先用六位配对码配对。"
 

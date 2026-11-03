@@ -10,7 +10,7 @@ import json, os, shutil, socket, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from agentclient import Agent, Steps
-from e2e_crossing import Fake, session_bus  # noqa: E402
+from fakedeskclient import Fake, session_bus  # noqa: E402
 
 AGENT, FAKEDESK, INJECTOR = sys.argv[1], sys.argv[2], sys.argv[3]
 step = Steps()
@@ -83,8 +83,8 @@ step("agent detects gamescope: capture 'unavailable' with the Gaming Mode explan
 
 # A controller on a fake desktop, placed so that gamescope sits on its right.
 bus_a = session_bus()
-fake_a = Fake("gs-fake-a", bus_a, "/tmp/gs-fake-a.sock", "1920x1080")
-a = Agent("gsa", "/tmp/home-gsa", "/tmp/run-gsa", AGENT, env={"DBUS_SESSION_BUS_ADDRESS": bus_a, "WAYLAND_DISPLAY": "wayland-fake"})
+fake_a = Fake(FAKEDESK, "gs-fake-a", bus_a, "/tmp/gs-fake-a.sock", "1920x1080")
+a = Agent("gsa", "/tmp/home-gsa", "/tmp/run-gsa", AGENT, port=42411, env={"DBUS_SESSION_BUS_ADDRESS": bus_a, "WAYLAND_DISPLAY": "wayland-fake"})
 ida, idb = a.state["device_id"], b.state["device_id"]
 step("controller ready on its desktop", a.wait(lambda st: st["input"]["capture"]["state"] == "ready", 20))
 found = a.wait(lambda st: any(p["id"] == idb for p in st["peers"])) and b.wait(lambda st: any(p["id"] == ida for p in st["peers"]))

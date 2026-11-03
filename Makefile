@@ -17,7 +17,7 @@ LOCALEDIR := $(PREFIX)/share/locale
 PO := $(wildcard po/*.po)
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 
-.PHONY: all build release test e2e e2e-crossing e2e-gnome e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
+.PHONY: all build release test e2e e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
 
 all: build
 
@@ -41,12 +41,29 @@ e2e: build
 e2e-crossing: build
 	python3 -I tests/e2e_crossing.py ./target/debug/rinflow-agent ./target/debug/fakedesk
 
+# The clipboard following the pointer both ways (text, HTML, PNG), the
+# setting on either side, password managers' secrets kept home; through the
+# Clipboard portal of tests/fakedesk. Needs dbus-daemon.
+e2e-clipboard: build
+	python3 -I tests/e2e_clipboard.py ./target/debug/rinflow-agent ./target/debug/fakedesk
+
+# An agent started before any desktop (the systemd user service at login)
+# finds the desktop through the systemd manager's environment, and lets go
+# when it is gone. tests/fakedesk --systemd stands in for the manager.
+e2e-systemd: build
+	python3 -I tests/e2e_systemd.py ./target/debug/rinflow-agent ./target/debug/fakedesk
+
 # The crossing on two real GNOME desktops: Mutter headless + the GNOME portal
 # backend on each side; the permission dialogs are pressed through AT-SPI.
 # Needs mutter, xdg-desktop-portal-gnome, dbus, at-spi2-core, python3-gi,
 # gir1.2-gtk-4.0 (see build-aux/Dockerfile.ubuntu-24.04).
 e2e-gnome: build
 	python3 tests/e2e_gnome.py ./target/debug/rinflow-agent ./target/debug/injector
+
+# The clipboard on two real GNOME desktops: GTK copies on one, the pointer
+# crosses, GTK pastes on the other (text, HTML, PNG). Needs what e2e-gnome needs.
+e2e-gnome-clipboard: build
+	python3 tests/e2e_gnome_clipboard.py ./target/debug/rinflow-agent ./target/debug/injector
 
 # The permission dialogs are pressed once; the second start must be silent.
 # RINFLOW_TEST_DESKTOP=kde runs these two on KWin + xdg-desktop-portal-kde.

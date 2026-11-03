@@ -49,6 +49,8 @@ mod imp {
         #[template_child]
         pub paired_only_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
+        pub clipboard_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
         pub autostart_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
         pub modifier_row: TemplateChild<adw::ComboRow>,
@@ -227,6 +229,7 @@ impl RinflowWindow {
 
         self.bind_switch(&imp.sharing_row, "sharing");
         self.bind_switch(&imp.paired_only_row, "paired_only");
+        self.bind_switch(&imp.clipboard_row, "clipboard");
         self.bind_switch(&imp.autostart_row, "launch_at_login");
         imp.modifier_row.connect_selected_notify(glib::clone!(
             #[weak(rename_to = window)]
@@ -340,6 +343,8 @@ impl RinflowWindow {
         let settings = &snapshot.settings;
         imp.sharing_row.set_active(settings.sharing);
         imp.paired_only_row.set_active(settings.paired_only);
+        imp.clipboard_row.set_active(settings.clipboard);
+        imp.clipboard_row.set_subtitle(&clipboard_subtitle(snapshot));
         imp.autostart_row.set_active(snapshot.launch_at_login);
         imp.modifier_row
             .set_selected(if settings.modifier_map == ModifierMap::SWAP { 0 } else { 1 });
@@ -366,7 +371,8 @@ impl RinflowWindow {
             .map(|s| s.peer_id.clone())
             .collect();
         if let Some(canvas) = imp.canvas.get() {
-            canvas.set_layout(snapshot.layout.clone(), connected, snapshot.driving.clone());
+            let online: HashSet<String> = snapshot.peers.iter().map(|p| p.id.clone()).collect();
+            canvas.set_layout(snapshot.layout.clone(), connected, online, snapshot.driving.clone());
         }
         imp.applying.set(false);
     }
@@ -726,6 +732,18 @@ fn apply_backend(row: &adw::ActionRow, icon: &gtk::Image, retry: &gtk::Button, v
         row.add_css_class(class);
     }
     retry.set_visible(matches!(view.state, BackendState::Denied | BackendState::Waiting) && !view.detail.is_empty());
+}
+
+/// What the clipboard switch says: what it does, or why it can't yet.
+fn clipboard_subtitle(snapshot: &Snapshot) -> String {
+    let emulation = snapshot.input.emulation.state;
+    if snapshot.input.clipboard || !snapshot.settings.clipboard {
+        gettext("Text and images copied here go along when the pointer moves to another device, and come back with it.")
+    } else if emulation == BackendState::Ready {
+        gettext("This desktop doesn't share its clipboard with Rinflow. It needs the clipboard portal (GNOME 45 or Plasma 6.2 and newer).")
+    } else {
+        gettext("Available once other devices may control this one: the clipboard comes with that permission.")
+    }
 }
 
 fn platform_icon(platform: &str) -> &'static str {

@@ -5,6 +5,7 @@
 
 mod autostart;
 mod backends;
+mod desktop;
 mod displays;
 mod driver;
 mod ipc;
@@ -21,7 +22,7 @@ use rinflow_shell::identity;
 use rinflow_shell::settings::SettingsStore;
 use rinflow_shell::state::SharedState;
 use rinflow_shell::trust::TrustStore;
-use rinflow_input::{CaptureEvent, EmulationEvent};
+use rinflow_input::{CaptureEvent, ClipboardEvent, EmulationEvent};
 use services::{AgentCommand, Services};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -119,6 +120,9 @@ async fn run() -> i32 {
             modifier_map: preferences.modifier_map,
             displays: arrangement.displays(),
             placements: arrangement.placements(),
+            // Always offered, so the setting can change at run time; while
+            // it is off the agent reports an empty clipboard (see below).
+            clipboard: true,
             identity_path: Some(identity::identity_path(&data).to_string_lossy().into_owned()),
             trusted_peers: trust.peers(),
             require_pairing: preferences.paired_only,
@@ -161,7 +165,15 @@ async fn run() -> i32 {
 
     let (capture_events_tx, mut capture_events) = mpsc::unbounded_channel::<CaptureEvent>();
     let (emulation_events_tx, mut emulation_events) = mpsc::unbounded_channel::<EmulationEvent>();
-    let mut backends = Backends::new(state.clone(), state_dir.clone(), capture_events_tx, emulation_events_tx);
+    let (clipboard_events_tx, mut clipboard_events) = mpsc::unbounded_channel::<ClipboardEvent>();
+    let mut backends = Backends::new(
+        state.clone(),
+        state_dir.clone(),
+        capture_events_tx,
+        emulation_events_tx,
+        clipboard_events_tx,
+    );
+    backends.set_clipboard_enabled(preferences.clipboard);
     let mut driver = Driver::new(Arc::downgrade(&core), state.clone(), arrangement.clone(), settings.clone(), backends.last_played.clone());
 
     let mut poll = tokio::time::interval(Duration::from_secs(1));
@@ -169,18 +181,30 @@ async fn run() -> i32 {
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
     log::info!("rinflow-agent {} as {} ({})", env!("CARGO_PKG_VERSION"), identity.device_name, identity.device_id);
 
+    // A core that could not start (its port is taken, say) leaves the agent
+    // up: the window shows why, and the port can be changed from there.
+    let mut core_running = true;
     loop {
         tokio::select! {
             _ = poll.tick() => {
-                if backends.poll() {
+                if backends.poll().await {
                     driver.set_capture(backends.capture_commands());
                 }
             }
             _ = tick.tick(), if driver.driving() => driver.tick(),
-            json = core_events.recv() => {
-                let Some(json) = json else { break };
+            json = core_events.recv(), if core_running => {
+                let Some(json) = json else {
+                    core_running = false;
+                    let detail = state.snapshot().last_error.unwrap_or_default();
+                    log::error!("the core stopped: {detail}");
+                    state.set_error(core_stopped_message(control_port, &detail));
+                    continue;
+                };
                 let Ok(event) = serde_json::from_str::<serde_json::Value>(&json) else { continue };
                 driver.core_event(&event);
+                if event["event"] == "clipboard" {
+                    received_clipboard(&event, &settings, &core, &backends);
+                }
                 if matches!(
                     event["event"].as_str(),
                     Some("placement_changed" | "peer_displays" | "peer_up" | "remote_control_started" | "remote_control_ended" | "disconnected")
@@ -188,12 +212,12 @@ async fn run() -> i32 {
                     driver.refresh_barriers();
                 }
             }
-            event = input.recv() => {
-                let Some(event) = event else { break };
+            event = input.recv(), if core_running => {
+                let Some(event) = event else { continue };
                 backends.play(event);
             }
             event = capture_events.recv() => {
-                let Some(event) = event else { break };
+                let Some(event) = event else { log::error!("capture events ended"); break };
                 backends.on_capture_event(&event);
                 match &event {
                     CaptureEvent::Zones(displays) => {
@@ -214,13 +238,34 @@ async fn run() -> i32 {
                 driver.handle_capture(event);
             }
             event = emulation_events.recv() => {
-                let Some(event) = event else { break };
+                let Some(event) = event else { log::error!("emulation events ended"); break };
                 backends.on_emulation_event(&event);
             }
+            event = clipboard_events.recv() => match event {
+                Some(ClipboardEvent::Available(available)) => state.set_clipboard_available(available),
+                Some(ClipboardEvent::Changed(clipboard)) => {
+                    // While sharing is off peers get an empty clipboard, so
+                    // nothing copied here leaves this device.
+                    let shared = if settings.get().clipboard { clipboard } else { Default::default() };
+                    log::debug!("local clipboard: {} formats", shared.formats.len());
+                    let _ = core.set_clipboard(shared);
+                }
+                None => {
+                    log::error!("clipboard events ended");
+                    break;
+                }
+            },
             command = commands.recv() => match command {
                 Some(AgentCommand::SettingsChanged(keys)) => {
                     if keys.iter().any(|key| key == "sharing") {
                         driver.refresh_barriers();
+                    }
+                    if keys.iter().any(|key| key == "clipboard") {
+                        let enabled = settings.get().clipboard;
+                        backends.set_clipboard_enabled(enabled);
+                        if !enabled {
+                            let _ = core.set_clipboard(Default::default());
+                        }
                     }
                 }
                 Some(AgentCommand::RetryInput) => {
@@ -250,4 +295,41 @@ async fn run() -> i32 {
     drop(core);
     let _ = std::fs::remove_file(paths::socket_path());
     0
+}
+
+/// What the window says when the core stopped (it only does at start-up).
+fn core_stopped_message(port: u16, detail: &str) -> String {
+    if detail.starts_with("control port failed") || detail.starts_with("discovery socket failed") {
+        if i18n::chinese() {
+            format!("Rinflow 无法使用 UDP 端口 {port}（可能有另一个 Rinflow 正在运行）。请在“设置”里换一个端口，然后重新启动后台服务。（{detail}）")
+        } else {
+            format!("Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Choose another port in Settings, then restart the agent. ({detail})")
+        }
+    } else if i18n::chinese() {
+        format!("Rinflow 核心没有启动：{detail}")
+    } else {
+        format!("Rinflow's core didn't start: {detail}")
+    }
+}
+
+/// A peer's clipboard arrived (control came back from it, or it started
+/// driving this device): this desktop's applications can paste it. With
+/// sharing off it is dropped, and the core's copy is cleared so it does not
+/// travel on to the next peer.
+fn received_clipboard(event: &serde_json::Value, settings: &SettingsStore, core: &Core, backends: &Backends) {
+    if !settings.get().clipboard {
+        let _ = core.set_clipboard(Default::default());
+        return;
+    }
+    match rinflow_core::Clipboard::from_json(event) {
+        Ok(clipboard) => {
+            log::info!(
+                "clipboard from {}: {:?}",
+                event["peer_id"].as_str().unwrap_or("?"),
+                clipboard.formats.iter().map(|f| (f.mime.as_str(), f.data.len())).collect::<Vec<_>>()
+            );
+            backends.offer_clipboard(clipboard);
+        }
+        Err(error) => log::warn!("unreadable clipboard from a peer: {error}"),
+    }
 }

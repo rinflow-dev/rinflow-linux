@@ -36,6 +36,9 @@ pub struct Settings {
     pub peer_input: BTreeMap<String, PeerInput>,
     /// The language of the agent's own text: `system`, `zh-CN` or `en-US`.
     pub language: String,
+    /// Share the clipboard with peers as control changes hands (text, HTML,
+    /// images). Off by default, as on Windows.
+    pub clipboard: bool,
 }
 
 /// Pointer and scrolling on one peer, applied by this device as it drives it
@@ -81,6 +84,7 @@ impl Default for Settings {
             manual_addresses: Vec::new(),
             peer_input: BTreeMap::new(),
             language: "system".to_owned(),
+            clipboard: false,
         }
     }
 }
@@ -243,5 +247,11 @@ mod tests {
         let mut values = Map::new();
         values.insert("manual_addresses".into(), serde_json::json!(["192.168.1.20"]));
         assert_eq!(settings.merged(&values).unwrap().manual_addresses.len(), 1);
+        assert!(!settings.clipboard);
+        let mut values = Map::new();
+        values.insert("clipboard".into(), Value::Bool(true));
+        assert!(settings.merged(&values).unwrap().clipboard);
+        values.insert("clipboard".into(), Value::from("yes"));
+        assert!(settings.merged(&values).is_err());
     }
 }

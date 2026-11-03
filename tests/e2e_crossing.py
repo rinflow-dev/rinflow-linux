@@ -6,65 +6,20 @@ fake desktop on each side that speaks the real portal and libei protocols:
 
 Run inside the build container: e2e_crossing.py <agent binary> <fakedesk binary>.
 Needs dbus-daemon."""
-import json, os, socket, subprocess, sys, time
+import json, os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 from agentclient import Agent, Steps
+from fakedeskclient import Fake, session_bus
 
 AGENT, FAKEDESK = sys.argv[1], sys.argv[2]
 step = Steps()
 
 
-def session_bus():
-    out = subprocess.check_output(["dbus-daemon", "--session", "--print-address", "--fork"]).decode().strip()
-    return out
-
-
-class Fake:
-    def __init__(self, name, bus, control, zones):
-        self.log = open(f"/tmp/{name}.log", "w")
-        env = dict(os.environ, DBUS_SESSION_BUS_ADDRESS=bus, RUST_LOG="info")
-        self.proc = subprocess.Popen([FAKEDESK, "--control", control, "--zones", zones], env=env,
-                                     stdout=self.log, stderr=subprocess.STDOUT)
-        for _ in range(50):
-            try:
-                self.s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                self.s.connect(control)
-                break
-            except OSError:
-                time.sleep(0.1)
-        else:
-            raise RuntimeError(f"{name}: control socket never appeared")
-        self.f = self.s.makefile("rwb", buffering=0)
-
-    def cmd(self, **kw):
-        self.s.sendall(json.dumps(kw).encode() + b"\n")
-        return json.loads(self.f.readline())
-
-    def state(self):
-        return self.cmd(cmd="state")["state"]
-
-    def wait(self, predicate, seconds=20):
-        end = time.time() + seconds
-        while time.time() < end:
-            if predicate(self.state()):
-                return True
-            time.sleep(0.2)
-        return False
-
-    def stop(self):
-        self.proc.terminate()
-        try:
-            self.proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-        self.log.close()
-
-
 if __name__ == "__main__":
     bus_a, bus_b = session_bus(), session_bus()
-    fake_a = Fake("fake-a", bus_a, "/tmp/fake-a.sock", "1920x1080")
-    fake_b = Fake("fake-b", bus_b, "/tmp/fake-b.sock", "1600x900")
-    a = Agent("xa", "/tmp/home-xa", "/tmp/run-xa", AGENT, env={"DBUS_SESSION_BUS_ADDRESS": bus_a, "WAYLAND_DISPLAY": "wayland-fake"})
+    fake_a = Fake(FAKEDESK, "fake-a", bus_a, "/tmp/fake-a.sock", "1920x1080")
+    fake_b = Fake(FAKEDESK, "fake-b", bus_b, "/tmp/fake-b.sock", "1600x900")
+    a = Agent("xa", "/tmp/home-xa", "/tmp/run-xa", AGENT, port=42411, env={"DBUS_SESSION_BUS_ADDRESS": bus_a, "WAYLAND_DISPLAY": "wayland-fake"})
     b = Agent("xb", "/tmp/home-xb", "/tmp/run-xb", AGENT, port=42431, env={"DBUS_SESSION_BUS_ADDRESS": bus_b, "WAYLAND_DISPLAY": "wayland-fake"})
     ida, idb = a.state["device_id"], b.state["device_id"]
 
@@ -97,6 +52,17 @@ if __name__ == "__main__":
          fake_a.wait(lambda s: s["enabled"] and any(bar[1] == 1920 and bar[3] == 1920 for bar in s["barriers"])), json.dumps(fake_a.state()["barriers"]))
     step("B's fake got a barrier on B's left edge (the mirrored placement)",
          fake_b.wait(lambda s: s["enabled"] and any(bar[1] == 0 and bar[3] == 0 for bar in s["barriers"])), json.dumps(fake_b.state()["barriers"]))
+    step("barriers are not set again while nothing changed (agent events re-check them often)",
+         fake_a.state()["refused_sets"] == 0, json.dumps({k: fake_a.state()[k] for k in ("barrier_sets", "refused_sets")}))
+    # Moving B changes the barrier while the session is enabled: the agent
+    # must disable it first, as Mutter refuses barriers on an enabled session.
+    a.send({"type": "place_beside", "peer_id": idb, "side": "left"})
+    step("B moved to the left: the barrier moves to A's left edge, session enabled again",
+         fake_a.wait(lambda s: s["enabled"] and any(bar[1] == 0 and bar[3] == 0 for bar in s["barriers"]), 10), json.dumps(fake_a.state()["barriers"]))
+    a.send({"type": "place_beside", "peer_id": idb, "side": "right"})
+    step("... and back to the right", fake_a.wait(lambda s: s["enabled"] and any(bar[1] == 1920 for bar in s["barriers"]), 10))
+    step("no barriers were refused", fake_a.state()["refused_sets"] == 0, str(fake_a.state()["refused_sets"]))
+    offset_b = next(d["offset"] for d in a.state["layout"]["devices"] if d["peer_id"] == idb)
     barrier_id = next(bar[0] for bar in fake_a.state()["barriers"] if bar[1] == 1920)
 
     # The crossing.

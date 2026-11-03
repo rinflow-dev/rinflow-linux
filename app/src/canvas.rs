@@ -58,6 +58,8 @@ mod imp {
     pub struct ArrangementCanvas {
         pub layout: RefCell<LayoutView>,
         pub connected: RefCell<HashSet<String>>,
+        /// Devices on the network now: only those wait on the shelf.
+        pub online: RefCell<HashSet<String>>,
         pub driving: RefCell<Option<String>>,
         pub(super) drag: RefCell<Option<Drag>>,
         pub preview: RefCell<Option<(String, Offset)>>,
@@ -148,10 +150,17 @@ impl ArrangementCanvas {
         *self.imp().on_preview.borrow_mut() = Some(Box::new(handler));
     }
 
-    pub fn set_layout(&self, layout: LayoutView, connected: HashSet<String>, driving: Option<String>) {
+    pub fn set_layout(
+        &self,
+        layout: LayoutView,
+        connected: HashSet<String>,
+        online: HashSet<String>,
+        driving: Option<String>,
+    ) {
         let imp = self.imp();
         *imp.layout.borrow_mut() = layout;
         *imp.connected.borrow_mut() = connected;
+        *imp.online.borrow_mut() = online;
         *imp.driving.borrow_mut() = driving;
         // A device that was placed while being dragged elsewhere: the
         // agent's word wins.
@@ -183,6 +192,11 @@ impl ArrangementCanvas {
         for display in &layout.displays {
             world.extend(display.x, display.y, display.width, display.height);
         }
+        // Placed devices always show (dimmed while offline). Of the others,
+        // only those on the network now wait on the shelf: every device ever
+        // seen is known, and a shelf of all of them would shrink the
+        // arrangement to nothing.
+        let online = imp.online.borrow();
         let mut unplaced: Vec<&DeviceView> = Vec::new();
         for device in &layout.devices {
             match device.offset {
@@ -191,7 +205,8 @@ impl ArrangementCanvas {
                         world.extend(display.x + offset.x, display.y + offset.y, display.width, display.height);
                     }
                 }
-                None => unplaced.push(device),
+                None if online.contains(&device.peer_id) => unplaced.push(device),
+                None => {}
             }
         }
         if world.is_empty() {
@@ -204,11 +219,13 @@ impl ArrangementCanvas {
             }
         }
         let Bounds { left, top, mut right, mut bottom } = world;
-        // The shelf: unplaced devices in a row below, at half size.
+        // The shelf: unplaced devices in rows below, at half size, as wide as
+        // the arrangement (or one device, if that is wider).
         let mut shelf = Vec::new();
         let gap = (bottom - top) * SHELF_GAP;
+        let row_width = right - left;
         let mut x = left;
-        let shelf_top = bottom + gap;
+        let mut shelf_top = bottom + gap;
         let mut shelf_bottom = shelf_top;
         for device in unplaced {
             if drag.as_ref().is_some_and(|drag| drag.peer_id == device.peer_id) {
@@ -226,12 +243,17 @@ impl ArrangementCanvas {
                 })
                 .collect();
             let (l, t, r, b) = bounds(&displays);
+            if x > left && x + (r - l) > left + row_width {
+                x = left;
+                shelf_top = shelf_bottom + gap * 0.5;
+                shelf_bottom = shelf_top;
+            }
             shelf.push((device.peer_id.clone(), (x - l, shelf_top - t), displays));
             x += (r - l) + gap * 0.5;
             shelf_bottom = shelf_bottom.max(shelf_top + (b - t));
         }
         if !shelf.is_empty() {
-            right = right.max(x);
+            right = right.max(shelf.iter().map(|(_, at, d)| at.0 + bounds(d).2).fold(f64::MIN, f64::max));
             bottom = shelf_bottom;
         }
         *imp.shelf.borrow_mut() = shelf;
