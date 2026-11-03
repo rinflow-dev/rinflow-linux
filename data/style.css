@@ -1,0 +1,6 @@
+/* Only what libadwaita has no class for: the arrangement canvas. */
+.arrangement-canvas {
+  min-height: 220px;
+  border-radius: 12px;
+  background-color: @view_bg_color;
+}

@@ -1,0 +1,101 @@
+//! Input on a Linux desktop, in both directions, behind two small
+//! interfaces the agent drives over channels:
+//!
+//! - **Capture** (this device drives a peer): the compositor puts invisible
+//!   barriers on the edges the agent names; when the pointer hits one the
+//!   compositor stops showing input to applications and hands it to us
+//!   over libei until we release it at a point of our choosing. That is the
+//!   `org.freedesktop.portal.InputCapture` portal (GNOME ≥ 45, Plasma ≥ 6.1).
+//! - **Emulation** (a peer drives this device): a libei sender connection,
+//!   obtained from the `RemoteDesktop` portal on a desktop, or by connecting
+//!   straight to gamescope's EIS socket in Steam Deck's Gaming Mode. The
+//!   same code plays the events either way.
+//!
+//! Geometry is in logical points, the core's unit; the portals speak logical
+//! pixels too, so nothing is scaled here.
+
+pub mod keymap;
+
+#[cfg(target_os = "linux")]
+mod ei_common;
+#[cfg(target_os = "linux")]
+pub mod ei_discover;
+#[cfg(target_os = "linux")]
+pub mod ei_emulation;
+#[cfg(target_os = "linux")]
+pub mod portal_capture;
+#[cfg(target_os = "linux")]
+pub mod token;
+
+use rinflow_core::layout::{Display, Side};
+
+/// A line on one of this device's edges that the pointer may cross, in
+/// logical points: `line` is the x (left/right) or y (top/bottom) of the
+/// edge, `from..to` its extent along it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Barrier {
+    /// The agent's own ID, reported back in [`CaptureEvent::Activated`].
+    pub id: u32,
+    pub side: Side,
+    pub line: f64,
+    pub from: f64,
+    pub to: f64,
+}
+
+/// What the agent tells a capture backend.
+#[derive(Debug)]
+pub enum CaptureCommand {
+    /// Replace the barriers (the portals on this device's edges changed).
+    SetBarriers(Vec<Barrier>),
+    /// Give the pointer back to this desktop at this logical point; the
+    /// capture ends.
+    Release { x: f64, y: f64 },
+    Shutdown,
+}
+
+/// What a capture backend reports.
+#[derive(Debug, PartialEq)]
+pub enum CaptureEvent {
+    /// The backend is set up (and the user allowed it, where asked).
+    Ready,
+    /// The desktop is asking the user whether to allow it.
+    Prompting,
+    /// The displays as the compositor describes them, in logical points.
+    Zones(Vec<Display>),
+    /// The pointer hit barrier `barrier` at `(x, y)`; input now comes here.
+    Activated { barrier: u32, x: f64, y: f64 },
+    /// Relative pointer motion, logical points.
+    Motion { dx: f64, dy: f64 },
+    /// A pointer button by the core's number (1 left, 2 right, 3 middle…).
+    Button { button: u32, down: bool },
+    /// Scrolling in logical points, the core's signs (positive y toward the
+    /// top of the content). `precise` for touchpads and smooth wheels.
+    Scroll { dx: f64, dy: f64, precise: bool },
+    /// A key by USB HID usage.
+    Key { usage: u32, down: bool },
+    /// The compositor ended the capture (after a release, or by itself).
+    Deactivated,
+    /// The user declined. Nothing will work until asked again.
+    Denied(String),
+    /// The session is gone (compositor restarted, EIS closed): the backend
+    /// has to be started afresh.
+    Lost(String),
+}
+
+/// Where an emulation backend gets its libei connection.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EisSource {
+    /// `org.freedesktop.portal.RemoteDesktop`, with the user's permission.
+    Portal,
+    /// A compositor's own EIS socket, such as gamescope's `gamescope-0-ei`.
+    Socket(std::path::PathBuf),
+}
+
+/// What an emulation backend reports.
+#[derive(Debug, PartialEq)]
+pub enum EmulationEvent {
+    Ready,
+    Prompting,
+    Denied(String),
+    Lost(String),
+}

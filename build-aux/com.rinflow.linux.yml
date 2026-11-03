@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/flatpak/flatpak-builder/refs/heads/main/data/flatpak-manifest.schema.json
+#
+# Build from the workspace root (the directory holding rinflow-core and
+# rinflow-linux side by side), so the path dependency resolves:
+#
+#   python3 flatpak-cargo-generator.py rinflow-linux/Cargo.lock -o rinflow-linux/build-aux/cargo-sources.json
+#   flatpak-builder --user --install --force-clean build-dir rinflow-linux/build-aux/com.rinflow.linux.yml
+app-id: com.rinflow.linux
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: rinflow
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --share=network
+  # The window finds the agent's socket in the runtime directory.
+  - --filesystem=xdg-run/rinflow:create
+  # Steam Deck Gaming Mode: gamescope's own EIS socket (see docs/LINUX_PLAN.md §6.3).
+  - --filesystem=xdg-run/gamescope-0-ei
+modules:
+  - name: rinflow
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/rinflow/cargo
+    build-commands:
+      - cargo --offline fetch --manifest-path rinflow-linux/Cargo.toml --verbose
+      - cargo --offline build --release --manifest-path rinflow-linux/Cargo.toml
+      - install -Dm755 rinflow-linux/target/release/rinflow /app/bin/rinflow
+      - install -Dm755 rinflow-linux/target/release/rinflow-agent /app/bin/rinflow-agent
+      - install -Dm644 rinflow-linux/data/com.rinflow.linux.desktop /app/share/applications/com.rinflow.linux.desktop
+      - install -Dm644 rinflow-linux/data/com.rinflow.linux.metainfo.xml /app/share/metainfo/com.rinflow.linux.metainfo.xml
+      - install -Dm644 rinflow-linux/data/icons/com.rinflow.linux.svg /app/share/icons/hicolor/scalable/apps/com.rinflow.linux.svg
+      - install -Dm644 rinflow-linux/data/icons/com.rinflow.linux-symbolic.svg /app/share/icons/hicolor/symbolic/apps/com.rinflow.linux-symbolic.svg
+      - for po in rinflow-linux/po/*.po; do lang=$(basename "$po" .po); install -d /app/share/locale/$lang/LC_MESSAGES; msgfmt -o /app/share/locale/$lang/LC_MESSAGES/rinflow.mo "$po"; done
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - rinflow-macos
+          - rinflow-windows
+          - linkcursor-android
+          - rinflow-core/target
+          - rinflow-linux/target
+          - example
+          - tmp
+          - docs
+      - cargo-sources.json

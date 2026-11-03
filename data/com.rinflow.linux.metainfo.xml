@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.rinflow.linux</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Rinflow</name>
+  <summary>Use one mouse and keyboard across your computers</summary>
+  <summary xml:lang="zh_CN">用一套键鼠操作你的所有电脑</summary>
+  <developer id="com.rinflow">
+    <name>Rinflow</name>
+  </developer>
+  <description>
+    <p>Move the pointer off the edge of this screen and it appears on the computer next to it: a Mac, a Windows PC, another Linux machine or a Steam Deck. The keyboard follows. Every connection is encrypted and new devices pair with a six-digit code.</p>
+    <p xml:lang="zh_CN">把指针推出屏幕边缘，它就出现在旁边那台电脑上：Mac、Windows、另一台 Linux 或 Steam Deck，键盘随之切换。所有连接都加密，新设备用六位配对码配对。</p>
+    <p>On GNOME and KDE the desktop asks once whether Rinflow may capture and play input. In Steam Deck's Gaming Mode this device can be controlled by others.</p>
+  </description>
+  <launchable type="desktop-id">com.rinflow.linux.desktop</launchable>
+  <provides>
+    <binary>rinflow</binary>
+    <binary>rinflow-agent</binary>
+  </provides>
+  <url type="homepage">https://github.com/rinflow-dev</url>
+  <categories>
+    <category>Utility</category>
+    <category>Network</category>
+  </categories>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <branding>
+    <color type="primary" scheme_preference="light">#99c1f1</color>
+    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+  </branding>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-02">
+      <description>
+        <p>First Linux release: GNOME and KDE on Wayland through the input portals, Steam Deck Gaming Mode as a controlled device.</p>
+      </description>
+    </release>
+  </releases>
+</component>

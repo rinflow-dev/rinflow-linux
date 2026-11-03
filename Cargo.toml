@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["agent", "input", "shell", "app", "tests/fakedesk"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[workspace.dependencies]
+rinflow-core = { path = "../rinflow-core" }
+rinflow-shell = { path = "shell" }
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time", "signal"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

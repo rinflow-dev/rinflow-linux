@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Rinflow
+Name[zh_CN]=Rinflow
+GenericName=Mouse and keyboard sharing
+GenericName[zh_CN]=键鼠共享
+Comment=Use one mouse and keyboard across your computers
+Comment[zh_CN]=用一套键鼠操作你的所有电脑
+Exec=rinflow
+Icon=com.rinflow.linux
+Terminal=false
+Categories=Utility;
+Keywords=kvm;mouse;keyboard;share;cursor;
+StartupNotify=true
+DBusActivatable=false

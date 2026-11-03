@@ -1,0 +1,226 @@
+using Gtk 4.0;
+using Adw 1;
+
+menu main_menu {
+  section {
+    item {
+      label: _("_Quit Rinflow Agent");
+      action: "app.quit-agent";
+    }
+  }
+
+  section {
+    item {
+      label: _("_About Rinflow");
+      action: "app.about";
+    }
+  }
+}
+
+template $RinflowWindow : Adw.ApplicationWindow {
+  title: "Rinflow";
+  default-width: 780;
+  default-height: 680;
+  width-request: 360;
+  height-request: 420;
+
+  content: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      [title]
+      Adw.ViewSwitcher {
+        stack: stack;
+        policy: wide;
+      }
+
+      [end]
+      MenuButton {
+        icon-name: "open-menu-symbolic";
+        menu-model: main_menu;
+        primary: true;
+        tooltip-text: _("Main Menu");
+      }
+    }
+
+    content: Adw.ToastOverlay toast_overlay {
+      Box {
+        orientation: vertical;
+
+        Adw.Banner error_banner {
+          button-label: _("Dismiss");
+        }
+
+        Adw.ViewStack stack {
+          vexpand: true;
+
+          Adw.ViewStackPage {
+            name: "devices";
+            title: _("Devices");
+            icon-name: "computer-symbolic";
+
+            child: Adw.PreferencesPage devices_page {
+              Adw.PreferencesGroup status_group {
+                title: _("This Device");
+
+                Adw.ActionRow capture_row {
+                  title: _("Controlling other devices");
+
+                  [prefix]
+                  Image capture_icon {
+                    icon-name: "input-mouse-symbolic";
+                  }
+
+                  [suffix]
+                  Button capture_retry {
+                    label: _("Ask Again");
+                    valign: center;
+                    visible: false;
+
+                    styles ["flat"]
+                  }
+                }
+
+                Adw.ActionRow emulation_row {
+                  title: _("Being controlled by other devices");
+
+                  [prefix]
+                  Image emulation_icon {
+                    icon-name: "input-keyboard-symbolic";
+                  }
+
+                  [suffix]
+                  Button emulation_retry {
+                    label: _("Ask Again");
+                    valign: center;
+                    visible: false;
+
+                    styles ["flat"]
+                  }
+                }
+              }
+
+              Adw.PreferencesGroup layout_group {
+                title: _("Arrangement");
+                description: _("Drag a device to the side of this screen it sits on. The pointer crosses where they touch.");
+              }
+
+              Adw.PreferencesGroup my_devices_group {
+                title: _("My Devices");
+
+                [header-suffix]
+                Button add_button {
+                  valign: center;
+                  tooltip-text: _("Add a device by address");
+
+                  styles ["flat"]
+
+                  Adw.ButtonContent {
+                    icon-name: "list-add-symbolic";
+                    label: _("Add");
+                  }
+                }
+              }
+
+              Adw.PreferencesGroup nearby_group {
+                title: _("Nearby Devices");
+                description: _("Devices found on this network that haven't connected yet.");
+              }
+            };
+          }
+
+          Adw.ViewStackPage {
+            name: "settings";
+            title: _("Settings");
+            icon-name: "emblem-system-symbolic";
+
+            child: Adw.PreferencesPage settings_page {
+              Adw.PreferencesGroup {
+                title: _("Sharing");
+
+                Adw.SwitchRow sharing_row {
+                  title: _("Share mouse and keyboard");
+                  subtitle: _("Off pauses crossing in both directions; devices stay connected.");
+                }
+
+                Adw.SwitchRow paired_only_row {
+                  title: _("Only paired devices");
+                  subtitle: _("New devices must pair with a six-digit code first.");
+                }
+
+                Adw.SwitchRow autostart_row {
+                  title: _("Start when I sign in");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Keyboard");
+
+                Adw.ComboRow modifier_row {
+                  title: _("Modifier keys from a Mac");
+                  subtitle: _("What ⌘ and Control play as when a Mac controls this device.");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Appearance");
+
+                Adw.ComboRow theme_row {
+                  title: _("Theme");
+                }
+
+                Adw.ComboRow language_row {
+                  title: _("Language");
+                  subtitle: _("Takes effect the next time the window opens.");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Network");
+
+                Adw.ActionRow port_row {
+                  title: _("Control port (UDP)");
+                  subtitle: _("Applies after the agent restarts.");
+
+                  [suffix]
+                  SpinButton port_spin {
+                    valign: center;
+                    numeric: true;
+                    adjustment: Adjustment {
+                      lower: 1024;
+                      upper: 65535;
+                      step-increment: 1;
+                      page-increment: 100;
+                    };
+                  }
+                }
+              }
+
+              Adw.PreferencesGroup about_group {
+                title: _("About This Device");
+
+                Adw.ActionRow name_row {
+                  title: _("Name");
+
+                  styles ["property"]
+                }
+
+                Adw.ActionRow fingerprint_row {
+                  title: _("Certificate fingerprint");
+                  subtitle-selectable: true;
+
+                  styles ["property"]
+                }
+
+                Adw.ActionRow version_row {
+                  title: _("Agent");
+
+                  styles ["property"]
+                }
+              }
+            };
+          }
+        }
+      }
+    };
+  };
+}

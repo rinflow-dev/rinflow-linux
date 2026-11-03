@@ -1,0 +1,19 @@
+# Rust build output (also holds the compiled .mo catalogs and .deb packages)
+/target/
+**/*.rs.bk
+
+# Flatpak builder state and output
+/.flatpak-builder/
+/build-dir/
+/repo/
+*.flatpak
+
+# Python bytecode from the e2e tests
+__pycache__/
+*.py[cod]
+
+# Local environment and OS metadata
+.env
+.env.*
+!.env.example
+.DS_Store

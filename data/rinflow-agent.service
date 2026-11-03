@@ -1,0 +1,18 @@
+# The Rinflow agent, for the user's whole login rather than one graphical
+# session: on a Steam Deck the session restarts when switching between
+# Desktop and Gaming Mode, and the agent must stay. It waits for a
+# compositor by itself (see rinflow-linux/agent/src/backends.rs).
+[Unit]
+Description=Rinflow agent (mouse and keyboard sharing)
+Documentation=https://github.com/rinflow-dev
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/rinflow-agent
+Restart=always
+RestartSec=2
+Slice=background.slice
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

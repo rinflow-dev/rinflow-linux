@@ -1,0 +1,9 @@
+FROM fedora:45
+RUN dnf -q -y install \
+    mutter xdg-desktop-portal xdg-desktop-portal-gnome \
+    kwin xdg-desktop-portal-kde plasma-workspace \
+    gamescope xorg-x11-server-Xwayland mesa-vulkan-drivers vulkan-loader mesa-dri-drivers \
+    dbus-daemon dbus-x11 at-spi2-core python3-gobject gtk4 python3 \
+    flatpak procps-ng iproute util-linux \
+    && dnf clean all
+RUN rpm -q mutter xdg-desktop-portal-gnome kwin xdg-desktop-portal-kde gamescope

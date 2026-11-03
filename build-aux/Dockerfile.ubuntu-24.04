@@ -1,0 +1,12 @@
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config curl ca-certificates git \
+    libgtk-4-dev libadwaita-1-dev blueprint-compiler gettext \
+    desktop-file-utils appstream \
+    xvfb dbus-x11 imagemagick x11-apps xdotool adwaita-icon-theme fonts-noto-cjk librsvg2-common locales dbus dbus-daemon \
+    mutter xdg-desktop-portal xdg-desktop-portal-gnome at-spi2-core python3-gi gir1.2-atspi-2.0 gir1.2-gtk-4.0 \
+    && rm -rf /var/lib/apt/lists/*
+ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && rustc --version
+RUN apt-cache policy libadwaita-1-dev libgtk-4-dev blueprint-compiler | grep -E "^[a-z]|Installed"
