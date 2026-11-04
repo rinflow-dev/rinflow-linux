@@ -34,11 +34,13 @@ modules:
       - cargo --offline build --release --manifest-path rinflow-linux/Cargo.toml
       - install -Dm755 rinflow-linux/target/release/rinflow /app/bin/rinflow
       - install -Dm755 rinflow-linux/target/release/rinflow-agent /app/bin/rinflow-agent
-      - install -Dm644 rinflow-linux/data/com.rinflow.linux.desktop /app/share/applications/com.rinflow.linux.desktop
-      - install -Dm644 rinflow-linux/data/com.rinflow.linux.metainfo.xml /app/share/metainfo/com.rinflow.linux.metainfo.xml
+      # The catalogs and the translated desktop entry and metainfo (msgfmt).
+      - make -C rinflow-linux locale
+      - install -Dm644 rinflow-linux/target/data/com.rinflow.linux.desktop /app/share/applications/com.rinflow.linux.desktop
+      - install -Dm644 rinflow-linux/target/data/com.rinflow.linux.metainfo.xml /app/share/metainfo/com.rinflow.linux.metainfo.xml
       - install -Dm644 rinflow-linux/data/icons/com.rinflow.linux.svg /app/share/icons/hicolor/scalable/apps/com.rinflow.linux.svg
       - install -Dm644 rinflow-linux/data/icons/com.rinflow.linux-symbolic.svg /app/share/icons/hicolor/symbolic/apps/com.rinflow.linux-symbolic.svg
-      - for po in rinflow-linux/po/*.po; do lang=$(basename "$po" .po); install -d /app/share/locale/$lang/LC_MESSAGES; msgfmt -o /app/share/locale/$lang/LC_MESSAGES/rinflow.mo "$po"; done
+      - for lang in $(grep -v '^#' rinflow-linux/po/LINGUAS); do install -Dm644 rinflow-linux/target/locale/$lang/LC_MESSAGES/rinflow.mo /app/share/locale/$lang/LC_MESSAGES/rinflow.mo; done
     sources:
       - type: dir
         path: ../..

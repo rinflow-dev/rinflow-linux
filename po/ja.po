@@ -1,0 +1,688 @@
+# Japanese translation of Rinflow.
+# This file is distributed under the same license as the rinflow package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: rinflow 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-04 00:54+0900\n"
+"PO-Revision-Date: 2026-11-04 12:00+0900\n"
+"Last-Translator: Rinflow\n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: agent/src/backends.rs:248
+msgid "The desktop is asking whether Rinflow may capture input"
+msgstr "Rinflow に入力のキャプチャーを許可するか、デスクトップが確認しています"
+
+#: agent/src/backends.rs:253
+msgid ""
+"Permission to capture input was not given. This device can't control others "
+"until it is requested again and allowed."
+msgstr ""
+"入力をキャプチャーする許可が得られませんでした。もう一度要求して許可されるま"
+"で、このデバイスから他のデバイスを操作することはできません。"
+
+#: agent/src/backends.rs:285
+msgid "The desktop is asking whether Rinflow may control this device"
+msgstr "Rinflow にこのデバイスの操作を許可するか、デスクトップが確認しています"
+
+#: agent/src/backends.rs:294
+msgid ""
+"Permission to control this device was not given. Other devices can't control "
+"it until it is requested again and allowed."
+msgstr ""
+"このデバイスを操作する許可が得られませんでした。もう一度要求して許可されるま"
+"で、他のデバイスからこのデバイスを操作することはできません。"
+
+#: agent/src/backends.rs:340
+msgid "Connecting to the desktop's input capture portal…"
+msgstr "デスクトップの入力キャプチャーポータルに接続しています…"
+
+#: agent/src/backends.rs:371
+msgid "Connecting input playback…"
+msgstr "入力の再生機能に接続しています…"
+
+#: agent/src/backends.rs:396
+msgid ""
+"In Gaming Mode this device can be controlled by others, but can't control "
+"them."
+msgstr ""
+"ゲームモードでは、このデバイスは他のデバイスから操作できますが、他のデバイス"
+"を操作することはできません。"
+
+#: agent/src/backends.rs:400
+msgid "X11 sessions aren't supported yet; use a Wayland session."
+msgstr ""
+"X11 セッションにはまだ対応していません。Wayland セッションを使用してくださ"
+"い。"
+
+#: agent/src/backends.rs:405
+msgid "No graphical session was found."
+msgstr "グラフィカルセッションが見つかりませんでした。"
+
+#: agent/src/main.rs:301
+msgid ""
+"Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
+"running. Choose another port in Settings, then restart the agent. ({detail})"
+msgstr ""
+"Rinflow は UDP ポート {port} を使用できませんでした。別の Rinflow が実行中の"
+"可能性があります。「設定」で別のポートを選び、バックグラウンドサービスを再起"
+"動してください。({detail})"
+
+#: agent/src/main.rs:305
+msgid "Rinflow's core didn't start: {detail}"
+msgstr "Rinflow のコアを起動できませんでした: {detail}"
+
+#: agent/src/services.rs:37
+msgid "launch_at_login must be true or false"
+msgstr "launch_at_login には true か false を指定してください"
+
+#: agent/src/services.rs:39
+msgid "Couldn't change “Start when I sign in”: {error}"
+msgstr "「ログイン時に起動」を変更できませんでした: {error}"
+
+#: agent/src/services.rs:103
+msgid "The core is shutting down"
+msgstr "コアを終了しています"
+
+#: app/src/agent.rs:119
+msgid "The agent couldn't be started: {error}"
+msgstr "バックグラウンドサービスを起動できませんでした: {error}"
+
+#: app/src/agent.rs:125
+msgid "The agent isn't answering ({error})"
+msgstr "バックグラウンドサービスが応答しません ({error})"
+
+#: app/src/agent.rs:153
+msgid ""
+"The agent and this window are different versions; update both ({version} / "
+"{protocol})"
+msgstr ""
+"バックグラウンドサービスとこのウィンドウのバージョンが異なります。両方を更新"
+"してください ({version} / {protocol})"
+
+#: app/src/canvas.rs:287
+msgid "This device"
+msgstr "このデバイス"
+
+#: app/src/main.rs:93
+msgid "Use one mouse and keyboard across your computers."
+msgstr "1 組のマウスとキーボードで、すべてのコンピューターを操作します。"
+
+#. Translators: your names, one per line, shown in the About dialog.
+#: app/src/main.rs:97
+msgid "translator-credits"
+msgstr "Rinflow"
+
+#: app/src/window.rs:179
+msgid "Swap ⌘ and Control (⌘C copies here)"
+msgstr "⌘ と Control を入れ替える (⌘C でここでもコピー)"
+
+#: app/src/window.rs:180
+msgid "Keep each key in its place"
+msgstr "各キーをそのまま使う"
+
+#: app/src/window.rs:183 app/src/window.rs:188
+msgid "Follow the system"
+msgstr "システムに従う"
+
+#: app/src/window.rs:184
+msgid "Light"
+msgstr "ライト"
+
+#: app/src/window.rs:185
+msgid "Dark"
+msgstr "ダーク"
+
+#: app/src/window.rs:310
+msgid "Starting the Rinflow agent…"
+msgstr "Rinflow バックグラウンドサービスを起動しています…"
+
+#: app/src/window.rs:365
+msgid "Not started yet"
+msgstr "まだ起動していません"
+
+#: app/src/window.rs:402
+msgid "Connected"
+msgstr "接続済み"
+
+#. Translators: the time a message takes to the other device and back.
+#: app/src/window.rs:406
+msgid "{ms} ms"
+msgstr "{ms} ミリ秒"
+
+#: app/src/window.rs:410
+msgid "controlling this device"
+msgstr "このデバイスを操作中"
+
+#: app/src/window.rs:414
+msgid "you are controlling it"
+msgstr "こちらから操作中"
+
+#: app/src/window.rs:418 app/src/window.rs:502
+msgid "Connecting…"
+msgstr "接続しています…"
+
+#: app/src/window.rs:419
+msgid "Online"
+msgstr "オンライン"
+
+#: app/src/window.rs:420
+msgid "Offline"
+msgstr "オフライン"
+
+#: app/src/window.rs:427
+msgid "not placed"
+msgstr "未配置"
+
+#: app/src/window.rs:431
+msgid "not paired"
+msgstr "未ペアリング"
+
+#: app/src/window.rs:437
+msgid "Disconnect"
+msgstr "切断"
+
+#: app/src/window.rs:437 app/src/window.rs:502
+msgid "Connect"
+msgstr "接続"
+
+#: app/src/window.rs:450
+msgid "Place on the left"
+msgstr "左に配置"
+
+#: app/src/window.rs:451
+msgid "Place on the right"
+msgstr "右に配置"
+
+#: app/src/window.rs:452
+msgid "Place above"
+msgstr "上に配置"
+
+#: app/src/window.rs:453
+msgid "Place below"
+msgstr "下に配置"
+
+#: app/src/window.rs:463
+msgid "Remove placement"
+msgstr "配置を解除"
+
+#: app/src/window.rs:465
+msgid "Forget this device"
+msgstr "このデバイスを削除"
+
+#: app/src/window.rs:479
+msgid "No devices yet"
+msgstr "まだデバイスがありません"
+
+#: app/src/window.rs:480
+msgid "Devices that connect once stay here. Nearby devices are listed below."
+msgstr ""
+"一度接続したデバイスはここに残ります。近くのデバイスは下に表示されます。"
+
+#: app/src/window.rs:516
+msgid "found"
+msgstr "見つかりました"
+
+#: app/src/window.rs:517
+msgid "no response"
+msgstr "応答なし"
+
+#: app/src/window.rs:518
+msgid "address not found"
+msgstr "アドレスが見つかりません"
+
+#: app/src/window.rs:519
+msgid "searching…"
+msgstr "検索しています…"
+
+#: app/src/window.rs:523
+msgid "Added by address"
+msgstr "アドレスで追加"
+
+#: app/src/window.rs:530
+msgid "Remove this address"
+msgstr "このアドレスを削除"
+
+#: app/src/window.rs:555
+msgid "Nothing nearby"
+msgstr "近くにデバイスはありません"
+
+#: app/src/window.rs:556
+msgid "Open Rinflow on another device on this network, or add it by address."
+msgstr ""
+"同じネットワーク上の別のデバイスで Rinflow を開くか、アドレスで追加してくださ"
+"い。"
+
+#: app/src/window.rs:574
+msgid "Waiting for the other device to confirm…"
+msgstr "相手のデバイスの確認を待っています…"
+
+#. Translators: {name} is the other device's name.
+#: app/src/window.rs:582
+msgid "Pair with {name}"
+msgstr "{name} とペアリング"
+
+#: app/src/window.rs:583
+msgid ""
+"Check that the other device shows the same six digits, then accept on both."
+msgstr ""
+"相手のデバイスに同じ 6 桁の数字が表示されていることを確認し、両方で承認してく"
+"ださい。"
+
+#: app/src/window.rs:595
+msgid "Reject"
+msgstr "拒否"
+
+#: app/src/window.rs:597
+msgid "Accept"
+msgstr "承認"
+
+#. Translators: {name} is a device's name.
+#: app/src/window.rs:643
+msgid "Forget {name}?"
+msgstr "{name} を削除しますか?"
+
+#: app/src/window.rs:644
+msgid ""
+"It is disconnected, unplaced and unpaired. It shows up again as a nearby "
+"device while it is online."
+msgstr ""
+"接続が切断され、配置とペアリングが解除されます。オンラインの間は、近くのデバ"
+"イスとして再び表示されます。"
+
+#: app/src/window.rs:647 app/src/window.rs:673
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: app/src/window.rs:648
+msgid "Forget"
+msgstr "削除"
+
+#: app/src/window.rs:664
+msgid "Add a Device by Address"
+msgstr "アドレスでデバイスを追加"
+
+#: app/src/window.rs:665
+msgid ""
+"For networks that don't carry discovery (guest Wi-Fi, VPNs): the other "
+"device's IP address or name. Only one of the two needs the other's address."
+msgstr ""
+"デバイスの検出が届かないネットワーク (ゲスト Wi-Fi や VPN など) 向けです。相"
+"手のデバイスの IP アドレスまたは名前を入力します。入力はどちらか一方のデバイ"
+"スだけで十分です。"
+
+#: app/src/window.rs:669
+msgid "Address"
+msgstr "アドレス"
+
+#: app/src/window.rs:674 data/ui/window.blp:119
+msgid "Add"
+msgstr "追加"
+
+#: app/src/window.rs:715
+msgid "Ready: move the pointer off the edge toward a placed device."
+msgstr ""
+"準備完了: 配置したデバイスの方向へ、ポインターを画面の端から出してください。"
+
+#: app/src/window.rs:717
+msgid "Ready: placed devices can move their pointer here."
+msgstr "準備完了: 配置されたデバイスから、ポインターをここへ移動できます。"
+
+#: app/src/window.rs:725
+msgid "Connecting to the desktop…"
+msgstr "デスクトップに接続しています…"
+
+#: app/src/window.rs:747 data/ui/window.blp:152
+msgid ""
+"Text and images copied here go along when the pointer moves to another "
+"device, and come back with it."
+msgstr ""
+"ここでコピーしたテキストや画像は、ポインターと一緒に別のデバイスへ移り、ポイ"
+"ンターが戻ると一緒に戻ってきます。"
+
+#: app/src/window.rs:749
+msgid ""
+"This desktop doesn't share its clipboard with Rinflow. It needs the "
+"clipboard portal (GNOME 45 or Plasma 6.2 and newer)."
+msgstr ""
+"このデスクトップは Rinflow とクリップボードを共有しません。クリップボードポー"
+"タル (GNOME 45、Plasma 6.2 以降) が必要です。"
+
+#: app/src/window.rs:751
+msgid ""
+"Available once other devices may control this one: the clipboard comes with "
+"that permission."
+msgstr ""
+"他のデバイスからの操作を許可すると使用できます。クリップボードはその許可に含"
+"まれます。"
+
+#: app/src/window.rs:768
+msgid "Device"
+msgstr "デバイス"
+
+#: app/src/window.rs:775
+msgid "on the left"
+msgstr "左側"
+
+#: app/src/window.rs:776
+msgid "on the right"
+msgstr "右側"
+
+#: app/src/window.rs:777
+msgid "above"
+msgstr "上側"
+
+#: app/src/window.rs:778
+msgid "below"
+msgstr "下側"
+
+#: data/ui/window.blp:7
+msgid "_Quit Rinflow Agent"
+msgstr "Rinflow バックグラウンドサービスを終了(_Q)"
+
+#: data/ui/window.blp:14
+msgid "_About Rinflow"
+msgstr "Rinflow について(_A)"
+
+#: data/ui/window.blp:41
+msgid "Main Menu"
+msgstr "メインメニュー"
+
+#: data/ui/window.blp:50
+msgid "Dismiss"
+msgstr "閉じる"
+
+#: data/ui/window.blp:58
+msgid "Devices"
+msgstr "デバイス"
+
+#: data/ui/window.blp:63
+msgid "This Device"
+msgstr "このデバイス"
+
+#: data/ui/window.blp:66
+msgid "Controlling other devices"
+msgstr "他のデバイスを操作"
+
+#: data/ui/window.blp:75 data/ui/window.blp:93
+msgid "Ask Again"
+msgstr "もう一度要求"
+
+#: data/ui/window.blp:84
+msgid "Being controlled by other devices"
+msgstr "他のデバイスからの操作"
+
+#: data/ui/window.blp:103
+msgid "Arrangement"
+msgstr "配置"
+
+#: data/ui/window.blp:104
+msgid ""
+"Drag a device to the side of this screen it sits on. The pointer crosses "
+"where they touch."
+msgstr ""
+"デバイスを、この画面に対して実際に置かれている側へドラッグしてください。画面"
+"が接する部分でポインターが移動します。"
+
+#: data/ui/window.blp:108
+msgid "My Devices"
+msgstr "マイデバイス"
+
+#: data/ui/window.blp:113
+msgid "Add a device by address"
+msgstr "アドレスでデバイスを追加"
+
+#: data/ui/window.blp:125
+msgid "Nearby Devices"
+msgstr "近くのデバイス"
+
+#: data/ui/window.blp:126
+msgid "Devices found on this network that haven't connected yet."
+msgstr "このネットワーク上で見つかった、まだ接続していないデバイスです。"
+
+#: data/ui/window.blp:133
+msgid "Settings"
+msgstr "設定"
+
+#: data/ui/window.blp:138
+msgid "Sharing"
+msgstr "共有"
+
+#: data/ui/window.blp:141
+msgid "Share mouse and keyboard"
+msgstr "マウスとキーボードを共有"
+
+#: data/ui/window.blp:142
+msgid "Off pauses crossing in both directions; devices stay connected."
+msgstr ""
+"オフにすると、どちらの方向への移動も一時停止します。デバイスの接続は維持され"
+"ます。"
+
+#: data/ui/window.blp:146
+msgid "Only paired devices"
+msgstr "ペアリング済みのデバイスのみ"
+
+#: data/ui/window.blp:147
+msgid "New devices must pair with a six-digit code first."
+msgstr "新しいデバイスは、まず 6 桁のコードでペアリングする必要があります。"
+
+#: data/ui/window.blp:151
+msgid "Share the clipboard"
+msgstr "クリップボードを共有"
+
+#: data/ui/window.blp:156
+msgid "Start when I sign in"
+msgstr "ログイン時に起動"
+
+#: data/ui/window.blp:161
+msgid "Keyboard"
+msgstr "キーボード"
+
+#: data/ui/window.blp:164
+msgid "Modifier keys from a Mac"
+msgstr "Mac からの修飾キー"
+
+#: data/ui/window.blp:165
+msgid "What ⌘ and Control play as when a Mac controls this device."
+msgstr "Mac からこのデバイスを操作するときの ⌘ と Control の割り当てです。"
+
+#: data/ui/window.blp:170
+msgid "Appearance"
+msgstr "外観"
+
+#: data/ui/window.blp:173
+msgid "Theme"
+msgstr "テーマ"
+
+#: data/ui/window.blp:177
+msgid "Language"
+msgstr "言語"
+
+#: data/ui/window.blp:178
+msgid "Takes effect the next time the window opens."
+msgstr "次にウィンドウを開いたときに反映されます。"
+
+#: data/ui/window.blp:183
+msgid "Network"
+msgstr "ネットワーク"
+
+#: data/ui/window.blp:186
+msgid "Control port (UDP)"
+msgstr "制御ポート (UDP)"
+
+#: data/ui/window.blp:187
+msgid "Applies after the agent restarts."
+msgstr "バックグラウンドサービスの再起動後に反映されます。"
+
+#: data/ui/window.blp:204
+msgid "About This Device"
+msgstr "このデバイスについて"
+
+#: data/ui/window.blp:207
+msgid "Name"
+msgstr "名前"
+
+#: data/ui/window.blp:213
+msgid "Certificate fingerprint"
+msgstr "証明書のフィンガープリント"
+
+#: data/ui/window.blp:220
+msgid "Agent"
+msgstr "バックグラウンドサービス"
+
+#: shell/src/settings.rs:98
+msgid "Settings couldn't be read"
+msgstr "設定を読み込めませんでした"
+
+#: shell/src/settings.rs:102
+msgid "Unknown setting: {key}"
+msgstr "不明な設定項目です: {key}"
+
+#: shell/src/settings.rs:107
+msgid "Invalid setting value: {error}"
+msgstr "設定値が無効です: {error}"
+
+#: shell/src/settings.rs:110
+msgid "Theme must be system, light, or dark"
+msgstr "テーマは「システムに従う」「ライト」「ダーク」のいずれかにしてください"
+
+#: shell/src/settings.rs:113
+msgid "Language must be system, Simplified Chinese, Japanese, or English"
+msgstr ""
+"言語は「システムに従う」、簡体字中国語、日本語、英語のいずれかにしてください"
+
+#: shell/src/settings.rs:119
+msgid "Ports must be between 1024 and 65535 and not the discovery port {port}"
+msgstr ""
+"ポートは 1024〜65535 の範囲で、検出用のポート {port} 以外にしてください"
+
+#: shell/src/settings.rs:124
+msgid "You can add up to {count} addresses"
+msgstr "アドレスは {count} 個まで追加できます"
+
+#: shell/src/settings.rs:131
+msgid ""
+"“{address}” isn't a valid address. Enter an IP address or a device name."
+msgstr ""
+"「{address}」は有効なアドレスではありません。IP アドレスまたはデバイス名を入"
+"力してください。"
+
+#: shell/src/settings.rs:134
+msgid ""
+"Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× "
+"and 5×"
+msgstr ""
+"ポインターの速度は 0.25〜4 倍、スクロールの速度は 0.25〜5 倍の範囲にしてくだ"
+"さい"
+
+#. Translators: {name} is a device's name, {message} why it disconnected.
+#: shell/src/state.rs:472
+msgid "{name}: {message}"
+msgstr "{name}: {message}"
+
+#: shell/src/state.rs:535
+msgid ""
+"The other device stopped responding (it may be asleep or offline). It "
+"reconnects when it's back."
+msgstr ""
+"相手のデバイスが応答しなくなりました (スリープ中かオフラインの可能性がありま"
+"す)。復帰すると自動的に再接続します。"
+
+#: shell/src/state.rs:536
+msgid ""
+"The other device refused the connection. It may have removed this device, or "
+"it only allows paired devices. To pair again, select Connect in the device "
+"menu."
+msgstr ""
+"相手のデバイスが接続を拒否しました。このデバイスが削除されたか、ペアリング済"
+"みのデバイスのみ許可されている可能性があります。もう一度ペアリングするには、"
+"デバイスのメニューで「接続」を選んでください。"
+
+#: shell/src/state.rs:537
+msgid ""
+"The device's identity certificate changed, so the connection was refused. If "
+"it was reinstalled, remove it in the device menu and pair again."
+msgstr ""
+"デバイスの ID 証明書が変わったため、接続を拒否しました。相手が再インストール"
+"された場合は、デバイスのメニューで「このデバイスを削除」を選び、もう一度ペア"
+"リングしてください。"
+
+#: shell/src/state.rs:539
+msgid "The other device declined pairing."
+msgstr "相手のデバイスがペアリングを拒否しました。"
+
+#: shell/src/state.rs:541
+msgid "Pairing timed out. It wasn't confirmed within two minutes."
+msgstr "ペアリングがタイムアウトしました。2 分以内に確認されませんでした。"
+
+#: shell/src/state.rs:542
+msgid "An unpaired device was disconnected (“Only paired devices” is on)."
+msgstr ""
+"ペアリングされていないデバイスを切断しました (「ペアリング済みのデバイスの"
+"み」がオンです)。"
+
+#: shell/src/state.rs:543
+msgid "Unpaired."
+msgstr "ペアリングを解除しました。"
+
+#: data/com.rinflow.linux.desktop.in:3
+msgid "Rinflow"
+msgstr "Rinflow"
+
+#: data/com.rinflow.linux.desktop.in:4
+msgid "Mouse and keyboard sharing"
+msgstr "マウスとキーボードの共有"
+
+#: data/com.rinflow.linux.desktop.in:5 data/com.rinflow.linux.metainfo.xml.in:7
+msgid "Use one mouse and keyboard across your computers"
+msgstr "1 組のマウスとキーボードで、すべてのコンピューターを操作"
+
+#. Translators: search terms, separated by semicolons and ending with one. Keep the English ones and add your own.
+#: data/com.rinflow.linux.desktop.in:11
+msgid "kvm;mouse;keyboard;share;cursor;"
+msgstr "kvm;mouse;keyboard;share;cursor;マウス;キーボード;共有;カーソル;"
+
+#: data/com.rinflow.linux.metainfo.xml.in:12
+msgid ""
+"Move the pointer off the edge of this screen and it appears on the computer "
+"next to it: a Mac, a Windows PC, another Linux machine or a Steam Deck. The "
+"keyboard follows. Every connection is encrypted and new devices pair with a "
+"six-digit code."
+msgstr ""
+"ポインターを画面の端から出すと、隣のコンピューター (Mac、Windows PC、別の "
+"Linux マシン、Steam Deck) に現れ、キーボードもそちらに切り替わります。接続は"
+"すべて暗号化され、新しいデバイスとは 6 桁のコードでペアリングします。"
+
+#: data/com.rinflow.linux.metainfo.xml.in:13
+msgid ""
+"On GNOME and KDE the desktop asks once whether Rinflow may capture and play "
+"input. In Steam Deck's Gaming Mode this device can be controlled by others."
+msgstr ""
+"GNOME と KDE では、Rinflow に入力のキャプチャーと再生を許可するかどうかを、デ"
+"スクトップが一度だけ確認します。Steam Deck のゲームモードでは、このデバイスを"
+"他のデバイスから操作できます。"
+
+#: data/com.rinflow.linux.metainfo.xml.in:14
+msgid ""
+"Optionally the clipboard goes along: text and images copied on one computer "
+"can be pasted on the next."
+msgstr ""
+"クリップボードも共有できます。あるコンピューターでコピーしたテキストや画像"
+"を、隣のコンピューターで貼り付けられます。"
+
+#: data/com.rinflow.linux.metainfo.xml.in:42
+msgid ""
+"First Linux release: GNOME and KDE on Wayland through the input portals, "
+"Steam Deck Gaming Mode as a controlled device, and clipboard sharing (text, "
+"HTML and images) through the clipboard portal."
+msgstr ""
+"最初の Linux 版です。入力ポータルを通じて Wayland 上の GNOME と KDE に対応"
+"し、Steam Deck のゲームモードでは操作される側のデバイスとして動作します。ま"
+"た、クリップボードポータルを通じてクリップボード (テキスト、HTML、画像) を共"
+"有できます。"

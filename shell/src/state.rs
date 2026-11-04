@@ -2,7 +2,7 @@
 //! window renders as it is. The agent pushes the whole snapshot on every
 //! change, so the window never has to replay individual core events.
 
-use crate::i18n::tr;
+use crate::i18n::{tr, trf};
 use crate::settings::Settings;
 use rinflow_core::layout::{Display, Offset, Side};
 use serde::{Deserialize, Serialize};
@@ -110,6 +110,18 @@ pub struct BackendView {
     pub backend: String,
     /// One line for the user when it is not `ready`.
     pub detail: String,
+    /// The English message `detail` was translated from, to translate it
+    /// again when the language changes (`None`: it came from elsewhere,
+    /// a portal's error say).
+    #[serde(skip)]
+    pub message: Option<&'static str>,
+}
+
+impl BackendView {
+    /// A state with a message of Rinflow's own, in the user's language.
+    pub fn translated(state: BackendState, backend: &str, message: &'static str) -> Self {
+        Self { state, backend: backend.to_owned(), detail: tr(message), message: Some(message) }
+    }
 }
 
 impl Default for BackendView {
@@ -118,6 +130,7 @@ impl Default for BackendView {
             state: BackendState::Waiting,
             backend: String::new(),
             detail: String::new(),
+            message: None,
         }
     }
 }
@@ -251,6 +264,19 @@ impl SharedState {
     pub fn set_emulation(&self, view: BackendView) {
         self.0
             .send_if_modified(|snapshot| replace(&mut snapshot.input.emulation, view));
+    }
+
+    /// Translates the input states again, after the language changed.
+    pub fn retranslate(&self) {
+        self.0.send_if_modified(|snapshot| {
+            let mut changed = false;
+            for view in [&mut snapshot.input.capture, &mut snapshot.input.emulation] {
+                if let Some(message) = view.message {
+                    changed |= replace(&mut view.detail, tr(message));
+                }
+            }
+            changed
+        });
     }
 
     pub fn set_clipboard_available(&self, available: bool) {
@@ -442,11 +468,8 @@ impl SharedState {
                 }
                 let reason = event["reason"].as_str().unwrap_or("disconnected");
                 if let Some(message) = disconnect_message(reason) {
-                    snapshot.last_error = Some(if crate::i18n::chinese() {
-                        format!("{name}：{message}")
-                    } else {
-                        format!("{name}: {message}")
-                    });
+                    // Translators: {name} is a device's name, {message} why it disconnected.
+                    snapshot.last_error = Some(trf("{name}: {message}", &[("name", &name), ("message", &message)]));
                 }
                 true
             }
@@ -509,35 +532,15 @@ fn disconnect_message(reason: &str) -> Option<String> {
         | "pairing declined" => return None,
         // The peer vanished without closing (slept, lost the network); the
         // core reconnects once it is back.
-        "heartbeat timeout" => tr(
-            "对方没有响应（可能睡眠了或断网），回来后会自动重新连接。",
-            "The other device stopped responding (it may be asleep or offline). It reconnects when it's back.",
-        )
-        .to_owned(),
-        "refused by the other device" => tr(
-            "对方拒绝了连接：对方可能移除了本机，或只允许已配对的设备。在设备菜单里点“连接”可以重新配对。",
-            "The other device refused the connection. It may have removed this device, or it only allows paired devices. To pair again, select Connect in the device menu.",
-        )
-        .to_owned(),
-        "the device's identity changed" => tr(
-            "设备的身份证书变了，已拒绝连接。如果对方重装过，请在设备菜单里移除它再重新配对。",
-            "The device's identity certificate changed, so the connection was refused. If it was reinstalled, remove it in the device menu and pair again.",
-        )
-        .to_owned(),
+        "heartbeat timeout" => tr("The other device stopped responding (it may be asleep or offline). It reconnects when it's back."),
+        "refused by the other device" => tr("The other device refused the connection. It may have removed this device, or it only allows paired devices. To pair again, select Connect in the device menu."),
+        "the device's identity changed" => tr("The device's identity certificate changed, so the connection was refused. If it was reinstalled, remove it in the device menu and pair again."),
         "pairing declined on the other device" => {
-            tr("对方拒绝了配对。", "The other device declined pairing.").to_owned()
+            tr("The other device declined pairing.")
         }
-        "pairing timed out" => tr(
-            "配对超时，没有在两分钟内确认。",
-            "Pairing timed out. It wasn't confirmed within two minutes.",
-        )
-        .to_owned(),
-        "pairing required" => tr(
-            "未配对的设备已断开（已开启“仅允许已配对设备”）。",
-            "An unpaired device was disconnected (\"Only paired devices\" is on).",
-        )
-        .to_owned(),
-        "unpaired" => tr("已取消配对。", "Unpaired.").to_owned(),
+        "pairing timed out" => tr("Pairing timed out. It wasn't confirmed within two minutes."),
+        "pairing required" => tr("An unpaired device was disconnected (“Only paired devices” is on)."),
+        "unpaired" => tr("Unpaired."),
         other => other.to_owned(),
     })
 }

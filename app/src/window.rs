@@ -141,7 +141,7 @@ glib::wrapper! {
 }
 
 const THEMES: [&str; 3] = ["system", "light", "dark"];
-const LANGUAGES: [&str; 3] = ["system", "zh-CN", "en-US"];
+use rinflow_shell::i18n::{LANGUAGES, fill};
 
 impl RinflowWindow {
     pub fn new(app: &adw::Application) -> Self {
@@ -186,7 +186,9 @@ impl RinflowWindow {
         ])));
         imp.language_row.set_model(Some(&gtk::StringList::new(&[
             &gettext("Follow the system"),
+            // Each language by its own name, so it can be found from any.
             "简体中文",
+            "日本語",
             "English",
         ])));
 
@@ -265,7 +267,7 @@ impl RinflowWindow {
                 if window.imp().applying.get() {
                     return;
                 }
-                let language = LANGUAGES[(row.selected() as usize).min(2)];
+                let language = LANGUAGES[(row.selected() as usize).min(LANGUAGES.len() - 1)];
                 window.imp().client.update_setting("language", language.into());
             }
         ));
@@ -399,7 +401,9 @@ impl RinflowWindow {
                 (Some(s), _) if s.status == rinflow_shell::state::SessionStatus::Connected => {
                     let mut text = gettext("Connected");
                     if let Some(ms) = s.latency_ms {
-                        text.push_str(&format!(" · {ms} ms"));
+                        text.push_str(" · ");
+                        // Translators: the time a message takes to the other device and back.
+                        text.push_str(&fill(&gettext("{ms} ms"), &[("ms", &ms)]));
                     }
                     if s.remote_control {
                         text.push_str(" · ");
@@ -574,7 +578,8 @@ impl RinflowWindow {
             (Some(pairing), _) => {
                 self.close_pairing();
                 let dialog = adw::AlertDialog::builder()
-                    .heading(format!("{} {}", gettext("Pair with"), pairing.name))
+                    // Translators: {name} is the other device's name.
+                    .heading(fill(&gettext("Pair with {name}"), &[("name", &pairing.name)]))
                     .body(gettext("Check that the other device shows the same six digits, then accept on both."))
                     .close_response("reject")
                     .default_response("accept")
@@ -634,7 +639,8 @@ impl RinflowWindow {
             .and_then(|s| s.layout.devices.iter().find(|d| d.peer_id == peer_id).map(|d| d.name.clone()))
             .unwrap_or_else(|| peer_id.to_owned());
         let dialog = adw::AlertDialog::builder()
-            .heading(format!("{} {name}?", gettext("Forget")))
+            // Translators: {name} is a device's name.
+            .heading(fill(&gettext("Forget {name}?"), &[("name", &name)]))
             .body(gettext("It is disconnected, unplaced and unpaired. It shows up again as a nearby device while it is online."))
             .close_response("cancel")
             .build();

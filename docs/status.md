@@ -30,6 +30,11 @@ or found broken.
 - **The arrangement's shelf** (fixed): only devices on the network now wait
   there, in rows. It listed every device ever seen in one row, which shrank
   the arrangement to a sliver and made a small drag land far off.
+- **Languages** (new): English, Simplified Chinese and Japanese, in the
+  window, the agent's own messages, the desktop entry and the AppStream
+  metainfo, all from GNU gettext catalogs (`po/`). The agent used to carry
+  its Chinese beside the English in the code; it now reads the same
+  catalogs as the window, and follows a change of the setting at once.
 - **When the core cannot start** (new): its port taken, say, the agent stays
   up and the window says why and what to do, instead of the agent exiting.
 
@@ -42,6 +47,9 @@ or found broken.
 | Discovery, pairing, sessions, placement sync | two agents on one host | `make e2e` | pass |
 | The crossing, both ways | fake desktops (tests/fakedesk) | `make e2e-crossing` | pass |
 | Clipboard both ways, the setting on either side, privacy, no echo | fake desktops, Clipboard portal as xdg-desktop-portal 1.20 sends it | `make e2e-clipboard` | pass |
+| The agent in Japanese, Chinese and English: system language as libc picks it (`LANGUAGE` list, the C locale), the setting over it, a change while running | two agents, no display | `make e2e-i18n` | pass |
+| Translations complete and well-formed; the translated desktop entry and metainfo valid | same | `make check` (check-po, desktop-file-validate, appstreamcli) | pass |
+| The window in Japanese on a real GNOME 48 session | Debian 13 desktop | by hand, `LANGUAGE=ja`, read through AT-SPI | every label translated |
 | Service started before the desktop; desktop going away | fake desktop + fake systemd manager | `make e2e-systemd` | pass |
 | The crossing between two real GNOME desktops | Mutter 48.7 headless + xdg-desktop-portal-gnome 48 + xdg-desktop-portal 1.20, x86_64 | `make e2e-gnome` | pass |
 | A real GNOME desktop as the controlled device | same | `make e2e-controlled` | pass |
@@ -82,5 +90,6 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
 - X11 sessions and wlroots compositors are not supported; Hyprland's portal
   leaks file descriptors per session in released versions.
 - No tray icon.
+- The window changes language the next time it opens (the agent at once).
 - Before GNOME 51 the capture permission is asked at every login (the
   desktop remembers only the RemoteDesktop one).

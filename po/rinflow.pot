@@ -1,0 +1,628 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-04 00:54+0900\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: agent/src/backends.rs:248
+msgid "The desktop is asking whether Rinflow may capture input"
+msgstr ""
+
+#: agent/src/backends.rs:253
+msgid ""
+"Permission to capture input was not given. This device can't control others "
+"until it is requested again and allowed."
+msgstr ""
+
+#: agent/src/backends.rs:285
+msgid "The desktop is asking whether Rinflow may control this device"
+msgstr ""
+
+#: agent/src/backends.rs:294
+msgid ""
+"Permission to control this device was not given. Other devices can't control "
+"it until it is requested again and allowed."
+msgstr ""
+
+#: agent/src/backends.rs:340
+msgid "Connecting to the desktop's input capture portal…"
+msgstr ""
+
+#: agent/src/backends.rs:371
+msgid "Connecting input playback…"
+msgstr ""
+
+#: agent/src/backends.rs:396
+msgid ""
+"In Gaming Mode this device can be controlled by others, but can't control "
+"them."
+msgstr ""
+
+#: agent/src/backends.rs:400
+msgid "X11 sessions aren't supported yet; use a Wayland session."
+msgstr ""
+
+#: agent/src/backends.rs:405
+msgid "No graphical session was found."
+msgstr ""
+
+#: agent/src/main.rs:301
+msgid ""
+"Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
+"running. Choose another port in Settings, then restart the agent. ({detail})"
+msgstr ""
+
+#: agent/src/main.rs:305
+msgid "Rinflow's core didn't start: {detail}"
+msgstr ""
+
+#: agent/src/services.rs:37
+msgid "launch_at_login must be true or false"
+msgstr ""
+
+#: agent/src/services.rs:39
+msgid "Couldn't change “Start when I sign in”: {error}"
+msgstr ""
+
+#: agent/src/services.rs:103
+msgid "The core is shutting down"
+msgstr ""
+
+#: app/src/agent.rs:119
+msgid "The agent couldn't be started: {error}"
+msgstr ""
+
+#: app/src/agent.rs:125
+msgid "The agent isn't answering ({error})"
+msgstr ""
+
+#: app/src/agent.rs:153
+msgid ""
+"The agent and this window are different versions; update both ({version} / "
+"{protocol})"
+msgstr ""
+
+#: app/src/canvas.rs:287
+msgid "This device"
+msgstr ""
+
+#: app/src/main.rs:93
+msgid "Use one mouse and keyboard across your computers."
+msgstr ""
+
+#. Translators: your names, one per line, shown in the About dialog.
+#: app/src/main.rs:97
+msgid "translator-credits"
+msgstr ""
+
+#: app/src/window.rs:179
+msgid "Swap ⌘ and Control (⌘C copies here)"
+msgstr ""
+
+#: app/src/window.rs:180
+msgid "Keep each key in its place"
+msgstr ""
+
+#: app/src/window.rs:183 app/src/window.rs:188
+msgid "Follow the system"
+msgstr ""
+
+#: app/src/window.rs:184
+msgid "Light"
+msgstr ""
+
+#: app/src/window.rs:185
+msgid "Dark"
+msgstr ""
+
+#: app/src/window.rs:310
+msgid "Starting the Rinflow agent…"
+msgstr ""
+
+#: app/src/window.rs:365
+msgid "Not started yet"
+msgstr ""
+
+#: app/src/window.rs:402
+msgid "Connected"
+msgstr ""
+
+#. Translators: the time a message takes to the other device and back.
+#: app/src/window.rs:406
+msgid "{ms} ms"
+msgstr ""
+
+#: app/src/window.rs:410
+msgid "controlling this device"
+msgstr ""
+
+#: app/src/window.rs:414
+msgid "you are controlling it"
+msgstr ""
+
+#: app/src/window.rs:418 app/src/window.rs:502
+msgid "Connecting…"
+msgstr ""
+
+#: app/src/window.rs:419
+msgid "Online"
+msgstr ""
+
+#: app/src/window.rs:420
+msgid "Offline"
+msgstr ""
+
+#: app/src/window.rs:427
+msgid "not placed"
+msgstr ""
+
+#: app/src/window.rs:431
+msgid "not paired"
+msgstr ""
+
+#: app/src/window.rs:437
+msgid "Disconnect"
+msgstr ""
+
+#: app/src/window.rs:437 app/src/window.rs:502
+msgid "Connect"
+msgstr ""
+
+#: app/src/window.rs:450
+msgid "Place on the left"
+msgstr ""
+
+#: app/src/window.rs:451
+msgid "Place on the right"
+msgstr ""
+
+#: app/src/window.rs:452
+msgid "Place above"
+msgstr ""
+
+#: app/src/window.rs:453
+msgid "Place below"
+msgstr ""
+
+#: app/src/window.rs:463
+msgid "Remove placement"
+msgstr ""
+
+#: app/src/window.rs:465
+msgid "Forget this device"
+msgstr ""
+
+#: app/src/window.rs:479
+msgid "No devices yet"
+msgstr ""
+
+#: app/src/window.rs:480
+msgid "Devices that connect once stay here. Nearby devices are listed below."
+msgstr ""
+
+#: app/src/window.rs:516
+msgid "found"
+msgstr ""
+
+#: app/src/window.rs:517
+msgid "no response"
+msgstr ""
+
+#: app/src/window.rs:518
+msgid "address not found"
+msgstr ""
+
+#: app/src/window.rs:519
+msgid "searching…"
+msgstr ""
+
+#: app/src/window.rs:523
+msgid "Added by address"
+msgstr ""
+
+#: app/src/window.rs:530
+msgid "Remove this address"
+msgstr ""
+
+#: app/src/window.rs:555
+msgid "Nothing nearby"
+msgstr ""
+
+#: app/src/window.rs:556
+msgid "Open Rinflow on another device on this network, or add it by address."
+msgstr ""
+
+#: app/src/window.rs:574
+msgid "Waiting for the other device to confirm…"
+msgstr ""
+
+#. Translators: {name} is the other device's name.
+#: app/src/window.rs:582
+msgid "Pair with {name}"
+msgstr ""
+
+#: app/src/window.rs:583
+msgid ""
+"Check that the other device shows the same six digits, then accept on both."
+msgstr ""
+
+#: app/src/window.rs:595
+msgid "Reject"
+msgstr ""
+
+#: app/src/window.rs:597
+msgid "Accept"
+msgstr ""
+
+#. Translators: {name} is a device's name.
+#: app/src/window.rs:643
+msgid "Forget {name}?"
+msgstr ""
+
+#: app/src/window.rs:644
+msgid ""
+"It is disconnected, unplaced and unpaired. It shows up again as a nearby "
+"device while it is online."
+msgstr ""
+
+#: app/src/window.rs:647 app/src/window.rs:673
+msgid "Cancel"
+msgstr ""
+
+#: app/src/window.rs:648
+msgid "Forget"
+msgstr ""
+
+#: app/src/window.rs:664
+msgid "Add a Device by Address"
+msgstr ""
+
+#: app/src/window.rs:665
+msgid ""
+"For networks that don't carry discovery (guest Wi-Fi, VPNs): the other "
+"device's IP address or name. Only one of the two needs the other's address."
+msgstr ""
+
+#: app/src/window.rs:669
+msgid "Address"
+msgstr ""
+
+#: app/src/window.rs:674 data/ui/window.blp:119
+msgid "Add"
+msgstr ""
+
+#: app/src/window.rs:715
+msgid "Ready: move the pointer off the edge toward a placed device."
+msgstr ""
+
+#: app/src/window.rs:717
+msgid "Ready: placed devices can move their pointer here."
+msgstr ""
+
+#: app/src/window.rs:725
+msgid "Connecting to the desktop…"
+msgstr ""
+
+#: app/src/window.rs:747 data/ui/window.blp:152
+msgid ""
+"Text and images copied here go along when the pointer moves to another "
+"device, and come back with it."
+msgstr ""
+
+#: app/src/window.rs:749
+msgid ""
+"This desktop doesn't share its clipboard with Rinflow. It needs the "
+"clipboard portal (GNOME 45 or Plasma 6.2 and newer)."
+msgstr ""
+
+#: app/src/window.rs:751
+msgid ""
+"Available once other devices may control this one: the clipboard comes with "
+"that permission."
+msgstr ""
+
+#: app/src/window.rs:768
+msgid "Device"
+msgstr ""
+
+#: app/src/window.rs:775
+msgid "on the left"
+msgstr ""
+
+#: app/src/window.rs:776
+msgid "on the right"
+msgstr ""
+
+#: app/src/window.rs:777
+msgid "above"
+msgstr ""
+
+#: app/src/window.rs:778
+msgid "below"
+msgstr ""
+
+#: data/ui/window.blp:7
+msgid "_Quit Rinflow Agent"
+msgstr ""
+
+#: data/ui/window.blp:14
+msgid "_About Rinflow"
+msgstr ""
+
+#: data/ui/window.blp:41
+msgid "Main Menu"
+msgstr ""
+
+#: data/ui/window.blp:50
+msgid "Dismiss"
+msgstr ""
+
+#: data/ui/window.blp:58
+msgid "Devices"
+msgstr ""
+
+#: data/ui/window.blp:63
+msgid "This Device"
+msgstr ""
+
+#: data/ui/window.blp:66
+msgid "Controlling other devices"
+msgstr ""
+
+#: data/ui/window.blp:75 data/ui/window.blp:93
+msgid "Ask Again"
+msgstr ""
+
+#: data/ui/window.blp:84
+msgid "Being controlled by other devices"
+msgstr ""
+
+#: data/ui/window.blp:103
+msgid "Arrangement"
+msgstr ""
+
+#: data/ui/window.blp:104
+msgid ""
+"Drag a device to the side of this screen it sits on. The pointer crosses "
+"where they touch."
+msgstr ""
+
+#: data/ui/window.blp:108
+msgid "My Devices"
+msgstr ""
+
+#: data/ui/window.blp:113
+msgid "Add a device by address"
+msgstr ""
+
+#: data/ui/window.blp:125
+msgid "Nearby Devices"
+msgstr ""
+
+#: data/ui/window.blp:126
+msgid "Devices found on this network that haven't connected yet."
+msgstr ""
+
+#: data/ui/window.blp:133
+msgid "Settings"
+msgstr ""
+
+#: data/ui/window.blp:138
+msgid "Sharing"
+msgstr ""
+
+#: data/ui/window.blp:141
+msgid "Share mouse and keyboard"
+msgstr ""
+
+#: data/ui/window.blp:142
+msgid "Off pauses crossing in both directions; devices stay connected."
+msgstr ""
+
+#: data/ui/window.blp:146
+msgid "Only paired devices"
+msgstr ""
+
+#: data/ui/window.blp:147
+msgid "New devices must pair with a six-digit code first."
+msgstr ""
+
+#: data/ui/window.blp:151
+msgid "Share the clipboard"
+msgstr ""
+
+#: data/ui/window.blp:156
+msgid "Start when I sign in"
+msgstr ""
+
+#: data/ui/window.blp:161
+msgid "Keyboard"
+msgstr ""
+
+#: data/ui/window.blp:164
+msgid "Modifier keys from a Mac"
+msgstr ""
+
+#: data/ui/window.blp:165
+msgid "What ⌘ and Control play as when a Mac controls this device."
+msgstr ""
+
+#: data/ui/window.blp:170
+msgid "Appearance"
+msgstr ""
+
+#: data/ui/window.blp:173
+msgid "Theme"
+msgstr ""
+
+#: data/ui/window.blp:177
+msgid "Language"
+msgstr ""
+
+#: data/ui/window.blp:178
+msgid "Takes effect the next time the window opens."
+msgstr ""
+
+#: data/ui/window.blp:183
+msgid "Network"
+msgstr ""
+
+#: data/ui/window.blp:186
+msgid "Control port (UDP)"
+msgstr ""
+
+#: data/ui/window.blp:187
+msgid "Applies after the agent restarts."
+msgstr ""
+
+#: data/ui/window.blp:204
+msgid "About This Device"
+msgstr ""
+
+#: data/ui/window.blp:207
+msgid "Name"
+msgstr ""
+
+#: data/ui/window.blp:213
+msgid "Certificate fingerprint"
+msgstr ""
+
+#: data/ui/window.blp:220
+msgid "Agent"
+msgstr ""
+
+#: shell/src/settings.rs:98
+msgid "Settings couldn't be read"
+msgstr ""
+
+#: shell/src/settings.rs:102
+msgid "Unknown setting: {key}"
+msgstr ""
+
+#: shell/src/settings.rs:107
+msgid "Invalid setting value: {error}"
+msgstr ""
+
+#: shell/src/settings.rs:110
+msgid "Theme must be system, light, or dark"
+msgstr ""
+
+#: shell/src/settings.rs:113
+msgid "Language must be system, Simplified Chinese, Japanese, or English"
+msgstr ""
+
+#: shell/src/settings.rs:119
+msgid "Ports must be between 1024 and 65535 and not the discovery port {port}"
+msgstr ""
+
+#: shell/src/settings.rs:124
+msgid "You can add up to {count} addresses"
+msgstr ""
+
+#: shell/src/settings.rs:131
+msgid ""
+"“{address}” isn't a valid address. Enter an IP address or a device name."
+msgstr ""
+
+#: shell/src/settings.rs:134
+msgid ""
+"Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× "
+"and 5×"
+msgstr ""
+
+#. Translators: {name} is a device's name, {message} why it disconnected.
+#: shell/src/state.rs:472
+msgid "{name}: {message}"
+msgstr ""
+
+#: shell/src/state.rs:535
+msgid ""
+"The other device stopped responding (it may be asleep or offline). It "
+"reconnects when it's back."
+msgstr ""
+
+#: shell/src/state.rs:536
+msgid ""
+"The other device refused the connection. It may have removed this device, or "
+"it only allows paired devices. To pair again, select Connect in the device "
+"menu."
+msgstr ""
+
+#: shell/src/state.rs:537
+msgid ""
+"The device's identity certificate changed, so the connection was refused. If "
+"it was reinstalled, remove it in the device menu and pair again."
+msgstr ""
+
+#: shell/src/state.rs:539
+msgid "The other device declined pairing."
+msgstr ""
+
+#: shell/src/state.rs:541
+msgid "Pairing timed out. It wasn't confirmed within two minutes."
+msgstr ""
+
+#: shell/src/state.rs:542
+msgid "An unpaired device was disconnected (“Only paired devices” is on)."
+msgstr ""
+
+#: shell/src/state.rs:543
+msgid "Unpaired."
+msgstr ""
+
+#: data/com.rinflow.linux.desktop.in:3
+msgid "Rinflow"
+msgstr ""
+
+#: data/com.rinflow.linux.desktop.in:4
+msgid "Mouse and keyboard sharing"
+msgstr ""
+
+#: data/com.rinflow.linux.desktop.in:5 data/com.rinflow.linux.metainfo.xml.in:7
+msgid "Use one mouse and keyboard across your computers"
+msgstr ""
+
+#. Translators: search terms, separated by semicolons and ending with one. Keep the English ones and add your own.
+#: data/com.rinflow.linux.desktop.in:11
+msgid "kvm;mouse;keyboard;share;cursor;"
+msgstr ""
+
+#: data/com.rinflow.linux.metainfo.xml.in:12
+msgid ""
+"Move the pointer off the edge of this screen and it appears on the computer "
+"next to it: a Mac, a Windows PC, another Linux machine or a Steam Deck. The "
+"keyboard follows. Every connection is encrypted and new devices pair with a "
+"six-digit code."
+msgstr ""
+
+#: data/com.rinflow.linux.metainfo.xml.in:13
+msgid ""
+"On GNOME and KDE the desktop asks once whether Rinflow may capture and play "
+"input. In Steam Deck's Gaming Mode this device can be controlled by others."
+msgstr ""
+
+#: data/com.rinflow.linux.metainfo.xml.in:14
+msgid ""
+"Optionally the clipboard goes along: text and images copied on one computer "
+"can be pasted on the next."
+msgstr ""
+
+#: data/com.rinflow.linux.metainfo.xml.in:42
+msgid ""
+"First Linux release: GNOME and KDE on Wayland through the input portals, "
+"Steam Deck Gaming Mode as a controlled device, and clipboard sharing (text, "
+"HTML and images) through the clipboard portal."
+msgstr ""

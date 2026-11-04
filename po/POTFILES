@@ -1,0 +1,13 @@
+# Files with translatable strings, for `make pot`. Keep sorted.
+agent/src/backends.rs
+agent/src/main.rs
+agent/src/services.rs
+app/src/agent.rs
+app/src/canvas.rs
+app/src/main.rs
+app/src/window.rs
+data/com.rinflow.linux.desktop.in
+data/com.rinflow.linux.metainfo.xml.in
+data/ui/window.blp
+shell/src/settings.rs
+shell/src/state.rs

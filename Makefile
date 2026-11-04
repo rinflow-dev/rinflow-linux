@@ -13,11 +13,19 @@ PREFIX ?= /usr/local
 DESTDIR ?=
 CARGO ?= cargo
 APP_ID := com.rinflow.linux
+VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 LOCALEDIR := $(PREFIX)/share/locale
-PO := $(wildcard po/*.po)
+# Translations (GNU gettext): po/LINGUAS names the languages, po/POTFILES
+# the files with strings in them. `make pot` refreshes po/rinflow.pot and
+# merges it into each po/<language>.po; `make locale` compiles the catalogs
+# and the translated desktop entry and metainfo into target/.
+LINGUAS := $(shell grep -v '^\#' po/LINGUAS)
+POTFILES := $(shell grep -v '^\#' po/POTFILES)
+PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
+DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test e2e e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
+.PHONY: all build release test check-po e2e e2e-i18n e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
 
 all: build
 
@@ -53,6 +61,11 @@ e2e-clipboard: build
 e2e-systemd: build
 	python3 -I tests/e2e_systemd.py ./target/debug/rinflow-agent ./target/debug/fakedesk
 
+# The agent's own text in Japanese, Chinese and English: the system language
+# as libc picks it, the language setting over it, changing it while running.
+e2e-i18n: build locale
+	python3 -I tests/e2e_i18n.py ./target/debug/rinflow-agent
+
 # The crossing on two real GNOME desktops: Mutter headless + the GNOME portal
 # backend on each side; the permission dialogs are pressed through AT-SPI.
 # Needs mutter, xdg-desktop-portal-gnome, dbus, at-spi2-core, python3-gi,
@@ -74,34 +87,58 @@ e2e-persist: build
 e2e-controlled: build
 	python3 tests/e2e_controlled.py ./target/debug/rinflow-agent ./target/debug/fakedesk
 
-locale: $(MO)
+locale: $(MO) $(DATA)
 
 target/locale/%/LC_MESSAGES/rinflow.mo: po/%.po
 	@mkdir -p $(dir $@)
 	msgfmt --check -o $@ $<
 
-# Runs the window from the build tree with the translations beside it.
+target/data/$(APP_ID).desktop: data/$(APP_ID).desktop.in $(PO) po/LINGUAS
+	@mkdir -p $(dir $@)
+	msgfmt --desktop --template=$< -d po -o $@
+
+target/data/$(APP_ID).metainfo.xml: data/$(APP_ID).metainfo.xml.in $(PO) po/LINGUAS
+	@mkdir -p $(dir $@)
+	msgfmt --xml --template=$< -d po -o $@
+
+# Runs the window from the build tree; it finds the translations in
+# target/locale by itself (so does the agent it starts).
 run: build locale
-	RINFLOW_LOCALEDIR=$(CURDIR)/target/locale RUST_LOG=info ./target/debug/rinflow
+	RUST_LOG=info ./target/debug/rinflow
 
 run-agent: build
 	RUST_LOG=debug ./target/debug/rinflow-agent
 
-# Refreshes po/rinflow.pot from the sources; merge into po/*.po with msgmerge.
+# Refreshes po/rinflow.pot from the files in po/POTFILES and merges it into
+# each language. Rust and Blueprint are read as C (xgettext has no Rust
+# before gettext 0.24): mark strings with gettext("…") in the window,
+# tr("…"), trf("…", …), gettext_noop("…") or BackendView::translated(_, _,
+# "…") in the agent, _("…") in Blueprint; and put a "// Translators:"
+# comment right above anything that needs explaining. Entries the sources
+# no longer have are dropped (msgattrib --no-obsolete).
 pot:
-	xgettext --from-code=UTF-8 --keyword=_ --language=C --package-name=rinflow -o po/rinflow.pot data/ui/*.blp
-	xgettext --from-code=UTF-8 --keyword=gettext --language=C --join-existing -o po/rinflow.pot app/src/*.rs
-	for po in $(PO); do msgmerge --update --backup=none $$po po/rinflow.pot; done
+	xgettext --from-code=UTF-8 --add-comments=Translators --package-name=rinflow \
+		--package-version=$(VERSION) \
+		--language=C --keyword=_ --keyword=C_:1c,2 --keyword=gettext --keyword=gettext_noop --keyword=tr --keyword=trf --keyword=translated:3 \
+		-o po/rinflow.pot $(filter %.rs %.blp,$(POTFILES))
+	xgettext --from-code=UTF-8 --add-comments=Translators --join-existing \
+		-o po/rinflow.pot $(filter %.in,$(POTFILES))
+	for po in $(PO); do msgmerge --quiet --update --backup=none $$po po/rinflow.pot && msgattrib --no-obsolete -o $$po $$po; done
 
-check:
-	desktop-file-validate data/$(APP_ID).desktop
-	appstreamcli validate --no-net data/$(APP_ID).metainfo.xml
+# Every language complete and well-formed: nothing untranslated or fuzzy,
+# the same {placeholders} as the English, catalogs that msgfmt accepts.
+check-po:
+	python3 -I tests/check_po.py po/rinflow.pot $(PO)
+
+check: locale check-po
+	desktop-file-validate target/data/$(APP_ID).desktop
+	appstreamcli validate --no-net target/data/$(APP_ID).metainfo.xml
 
 install: release locale
 	install -Dm755 target/release/rinflow $(DESTDIR)$(PREFIX)/bin/rinflow
 	install -Dm755 target/release/rinflow-agent $(DESTDIR)$(PREFIX)/bin/rinflow-agent
-	install -Dm644 data/$(APP_ID).desktop $(DESTDIR)$(PREFIX)/share/applications/$(APP_ID).desktop
-	install -Dm644 data/$(APP_ID).metainfo.xml $(DESTDIR)$(PREFIX)/share/metainfo/$(APP_ID).metainfo.xml
+	install -Dm644 target/data/$(APP_ID).desktop $(DESTDIR)$(PREFIX)/share/applications/$(APP_ID).desktop
+	install -Dm644 target/data/$(APP_ID).metainfo.xml $(DESTDIR)$(PREFIX)/share/metainfo/$(APP_ID).metainfo.xml
 	install -Dm644 data/icons/$(APP_ID).svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/$(APP_ID).svg
 	install -Dm644 data/icons/$(APP_ID)-symbolic.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
 	sed 's|/usr/bin/rinflow-agent|$(PREFIX)/bin/rinflow-agent|' data/rinflow-agent.service > target/rinflow-agent.service

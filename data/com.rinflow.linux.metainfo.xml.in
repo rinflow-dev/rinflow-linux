@@ -3,18 +3,15 @@
   <id>com.rinflow.linux</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Rinflow</name>
+  <name translate="no">Rinflow</name>
   <summary>Use one mouse and keyboard across your computers</summary>
-  <summary xml:lang="zh_CN">用一套键鼠操作你的所有电脑</summary>
   <developer id="com.rinflow">
-    <name>Rinflow</name>
+    <name translate="no">Rinflow</name>
   </developer>
   <description>
     <p>Move the pointer off the edge of this screen and it appears on the computer next to it: a Mac, a Windows PC, another Linux machine or a Steam Deck. The keyboard follows. Every connection is encrypted and new devices pair with a six-digit code.</p>
-    <p xml:lang="zh_CN">把指针推出屏幕边缘，它就出现在旁边那台电脑上：Mac、Windows、另一台 Linux 或 Steam Deck，键盘随之切换。所有连接都加密，新设备用六位配对码配对。</p>
     <p>On GNOME and KDE the desktop asks once whether Rinflow may capture and play input. In Steam Deck's Gaming Mode this device can be controlled by others.</p>
     <p>Optionally the clipboard goes along: text and images copied on one computer can be pasted on the next.</p>
-    <p xml:lang="zh_CN">还可以同步剪贴板：在一台电脑上复制的文字和图片，可以在下一台上粘贴。</p>
   </description>
   <launchable type="desktop-id">com.rinflow.linux.desktop</launchable>
   <provides>

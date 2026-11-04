@@ -17,7 +17,7 @@ use backends::Backends;
 use driver::Driver;
 use rinflow_core::{Core, CoreConfig, LcInputEvent};
 use rinflow_shell::arrangement::Arrangement;
-use rinflow_shell::i18n;
+use rinflow_shell::i18n::{self, trf};
 use rinflow_shell::identity;
 use rinflow_shell::settings::SettingsStore;
 use rinflow_shell::state::SharedState;
@@ -81,11 +81,7 @@ async fn run() -> i32 {
         }
     };
 
-    let locale = ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .iter()
-        .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()))
-        .unwrap_or_default();
-    i18n::set_system_chinese(i18n::locale_is_simplified_chinese(&locale));
+    i18n::init(i18n::locale_directory(), i18n::system_languages(|name| std::env::var(name).ok()));
 
     let settings = Arc::new(SettingsStore::load(&data));
     let preferences = settings.get();
@@ -300,15 +296,13 @@ async fn run() -> i32 {
 /// What the window says when the core stopped (it only does at start-up).
 fn core_stopped_message(port: u16, detail: &str) -> String {
     if detail.starts_with("control port failed") || detail.starts_with("discovery socket failed") {
-        if i18n::chinese() {
-            format!("Rinflow 无法使用 UDP 端口 {port}（可能有另一个 Rinflow 正在运行）。请在“设置”里换一个端口，然后重新启动后台服务。（{detail}）")
-        } else {
-            format!("Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Choose another port in Settings, then restart the agent. ({detail})")
-        }
-    } else if i18n::chinese() {
-        format!("Rinflow 核心没有启动：{detail}")
+        // Translators: {detail} is the system's error message, in English.
+        trf(
+            "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Choose another port in Settings, then restart the agent. ({detail})",
+            &[("port", &port), ("detail", &detail)],
+        )
     } else {
-        format!("Rinflow's core didn't start: {detail}")
+        trf("Rinflow's core didn't start: {detail}", &[("detail", &detail)])
     }
 }
 

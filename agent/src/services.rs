@@ -4,7 +4,7 @@ use crate::autostart;
 use rinflow_core::Core;
 use rinflow_core::layout::Offset;
 use rinflow_shell::arrangement::Arrangement;
-use rinflow_shell::i18n::{self, tr};
+use rinflow_shell::i18n::{self, tr, trf};
 use rinflow_shell::settings::SettingsStore;
 use rinflow_shell::state::SharedState;
 use serde_json::{Map, Value};
@@ -34,16 +34,9 @@ impl Services {
     /// applies them at once and remembers them.
     pub fn update_settings(&self, mut values: Map<String, Value>) -> Result<(), String> {
         if let Some(value) = values.remove("launch_at_login") {
-            let enabled = value.as_bool().ok_or(tr(
-                "launch_at_login 需要 true 或 false",
-                "launch_at_login must be true or false",
-            ))?;
+            let enabled = value.as_bool().ok_or_else(|| tr("launch_at_login must be true or false"))?;
             autostart::set(enabled).map_err(|error| {
-                if i18n::chinese() {
-                    format!("无法设置登录时启动：{error}")
-                } else {
-                    format!("Couldn't change \"Start when I sign in\": {error}")
-                }
+                trf("Couldn't change “Start when I sign in”: {error}", &[("error", &error)])
             })?;
             self.state.set_launch_at_login(autostart::enabled());
         }
@@ -70,6 +63,7 @@ impl Services {
         }
         if values.contains_key("language") {
             i18n::set_language(&settings.language);
+            self.state.retranslate();
         }
         self.state.set_settings(settings);
         let _ = self.commands.send(AgentCommand::SettingsChanged(keys));
@@ -106,6 +100,6 @@ impl Services {
     pub fn core(&self) -> Result<Arc<Core>, String> {
         self.core
             .upgrade()
-            .ok_or_else(|| tr("核心正在关闭", "The core is shutting down").to_owned())
+            .ok_or_else(|| tr("The core is shutting down"))
     }
 }

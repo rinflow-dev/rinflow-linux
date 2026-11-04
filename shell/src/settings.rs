@@ -1,7 +1,7 @@
 //! Agent preferences, saved to `settings.json`. Starting at login is not
 //! kept here: the platform's autostart mechanism is the truth.
 
-use crate::i18n::{self, LANGUAGES, tr};
+use crate::i18n::{LANGUAGES, tr, trf};
 use crate::store;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -34,7 +34,7 @@ pub struct Settings {
     pub manual_addresses: Vec<String>,
     /// How this device's mouse feels on each peer it drives, by device ID.
     pub peer_input: BTreeMap<String, PeerInput>,
-    /// The language of the agent's own text: `system`, `zh-CN` or `en-US`.
+    /// The language of the agent's own text: `system`, `zh-CN`, `ja-JP` or `en-US`.
     pub language: String,
     /// Share the clipboard with peers as control changes hands (text, HTML,
     /// images). Off by default, as on Windows.
@@ -95,74 +95,43 @@ impl Settings {
     pub fn merged(&self, values: &Map<String, Value>) -> Result<Self, String> {
         let mut object = match serde_json::to_value(self) {
             Ok(Value::Object(object)) => object,
-            _ => return Err(tr("设置无法读取", "Settings couldn't be read").to_owned()),
+            _ => return Err(tr("Settings couldn't be read")),
         };
         for (key, value) in values {
             if !object.contains_key(key) {
-                return Err(if i18n::chinese() {
-                    format!("未知的设置项：{key}")
-                } else {
-                    format!("Unknown setting: {key}")
-                });
+                return Err(trf("Unknown setting: {key}", &[("key", key)]));
             }
             object.insert(key.clone(), value.clone());
         }
         let merged: Self = serde_json::from_value(Value::Object(object)).map_err(|error| {
-            if i18n::chinese() {
-                format!("设置的值无效：{error}")
-            } else {
-                format!("Invalid setting value: {error}")
-            }
+            trf("Invalid setting value: {error}", &[("error", &error)])
         })?;
         if !matches!(merged.theme.as_str(), "system" | "light" | "dark") {
-            return Err(tr(
-                "主题只能是跟随系统、浅色或深色",
-                "Theme must be system, light, or dark",
-            )
-            .to_owned());
+            return Err(tr("Theme must be system, light, or dark"));
         }
         if !LANGUAGES.contains(&merged.language.as_str()) {
-            return Err(tr(
-                "语言只能是跟随系统、简体中文或英语",
-                "Language must be system, Simplified Chinese, or English",
-            )
-            .to_owned());
+            return Err(tr("Language must be system, Simplified Chinese, Japanese, or English"));
         }
         if let Some(port) = merged.port
             && (port < 1024 || port == DISCOVERY_PORT)
         {
-            return Err(if i18n::chinese() {
-                format!("端口需在 1024–65535 之间，且不能是发现端口 {DISCOVERY_PORT}")
-            } else {
-                format!(
-                    "Ports must be between 1024 and 65535 and not the discovery port {DISCOVERY_PORT}"
-                )
-            });
+            return Err(trf(
+                "Ports must be between 1024 and 65535 and not the discovery port {port}",
+                &[("port", &DISCOVERY_PORT)],
+            ));
         }
         if merged.manual_addresses.len() > MAX_MANUAL_ADDRESSES {
-            return Err(if i18n::chinese() {
-                format!("最多添加 {MAX_MANUAL_ADDRESSES} 个地址")
-            } else {
-                format!("You can add up to {MAX_MANUAL_ADDRESSES} addresses")
-            });
+            return Err(trf("You can add up to {count} addresses", &[("count", &MAX_MANUAL_ADDRESSES)]));
         }
         if let Some(bad) = merged
             .manual_addresses
             .iter()
             .find(|address| rinflow_core::parse_address(address, DISCOVERY_PORT).is_err())
         {
-            return Err(if i18n::chinese() {
-                format!("“{bad}”不是有效的地址：请输入 IP 地址或设备名称")
-            } else {
-                format!("“{bad}” isn't a valid address. Enter an IP address or a device name.")
-            });
+            return Err(trf("“{address}” isn't a valid address. Enter an IP address or a device name.", &[("address", bad)]));
         }
         if merged.peer_input.values().any(|input| !input.is_valid()) {
-            return Err(tr(
-                "指针速度需在 0.25–4 倍之间，滚动速度在 0.25–5 倍之间",
-                "Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× and 5×",
-            )
-            .to_owned());
+            return Err(tr("Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× and 5×"));
         }
         Ok(merged)
     }

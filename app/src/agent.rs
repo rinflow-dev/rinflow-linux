@@ -115,15 +115,15 @@ impl AgentClient {
                     if !spawned {
                         spawned = true;
                         if let Err(error) = spawn_agent() {
-                            self.set_status(Status::Unreachable(format!(
-                                "{}: {error}",
-                                gettextrs::gettext("The agent couldn't be started")
+                            self.set_status(Status::Unreachable(rinflow_shell::i18n::fill(
+                                &gettextrs::gettext("The agent couldn't be started: {error}"),
+                                &[("error", &error)],
                             )));
                         }
                     } else if attempts > 20 {
-                        self.set_status(Status::Unreachable(format!(
-                            "{} ({error})",
-                            gettextrs::gettext("The agent isn't answering")
+                        self.set_status(Status::Unreachable(rinflow_shell::i18n::fill(
+                            &gettextrs::gettext("The agent isn't answering ({error})"),
+                            &[("error", &error)],
                         )));
                     }
                     glib::timeout_future(Duration::from_millis(if attempts > 20 { 2000 } else { 400 }))
@@ -149,9 +149,9 @@ impl AgentClient {
             match serde_json::from_str::<Incoming>(&line) {
                 Ok(Incoming::Hello { protocol, agent_version }) => {
                     if protocol != PROTOCOL_VERSION {
-                        self.report_error(&format!(
-                            "{} ({agent_version} / {protocol})",
-                            gettextrs::gettext("The agent and this window are different versions; update both")
+                        self.report_error(&rinflow_shell::i18n::fill(
+                            &gettextrs::gettext("The agent and this window are different versions; update both ({version} / {protocol})"),
+                            &[("version", &agent_version), ("protocol", &protocol)],
                         ));
                     }
                 }

@@ -10,7 +10,7 @@ use gtk::{gio, glib};
 use std::path::PathBuf;
 
 pub const APP_ID: &str = "com.rinflow.linux";
-const TEXT_DOMAIN: &str = "rinflow";
+use rinflow_shell::i18n::{self, TEXT_DOMAIN};
 
 fn main() -> glib::ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
@@ -19,23 +19,27 @@ fn main() -> glib::ExitCode {
     // file; read them before GTK and gettext start, so the window opens in
     // them. (The agent applies every other setting.)
     let settings = rinflow_shell::settings::SettingsStore::load(&data_directory()).get();
-    let language = match settings.language.as_str() {
-        "zh-CN" => Some("zh_CN.UTF-8"),
-        "en-US" => Some("en_US.UTF-8"),
-        _ => None,
-    };
-    if let Some(language) = language {
+    // A chosen language goes in LANGUAGE, which only picks the translations
+    // (GTK's and libadwaita's too), so the locale's formats and a locale
+    // that isn't generated don't matter. gettext ignores LANGUAGE in the C
+    // locale, so then the messages' locale becomes C.UTF-8. Following the
+    // system is left to libc, as in the agent (shell/src/i18n.rs).
+    let chosen = i18n::gettext_language(&settings.language);
+    if let Some(language) = chosen {
         // SAFETY: before any other thread exists.
-        unsafe {
-            std::env::set_var("LANGUAGE", language);
-            std::env::set_var("LC_MESSAGES", language);
-        }
+        unsafe { std::env::set_var("LANGUAGE", language) };
     }
-    // SAFETY: before any other thread exists.
+    // SAFETY: before any other thread exists; setlocale's answer is read
+    // before the next call.
     unsafe {
         gettextrs::setlocale(gettextrs::LocaleCategory::LcAll, "");
+        let messages = libc::setlocale(libc::LC_MESSAGES, std::ptr::null());
+        let messages = (!messages.is_null()).then(|| std::ffi::CStr::from_ptr(messages).to_bytes());
+        if chosen.is_some() && matches!(messages, None | Some(b"C") | Some(b"POSIX")) {
+            gettextrs::setlocale(gettextrs::LocaleCategory::LcMessages, "C.UTF-8");
+        }
     }
-    let _ = gettextrs::bindtextdomain(TEXT_DOMAIN, locale_directory());
+    let _ = gettextrs::bindtextdomain(TEXT_DOMAIN, i18n::locale_directory());
     let _ = gettextrs::bind_textdomain_codeset(TEXT_DOMAIN, "UTF-8");
     let _ = gettextrs::textdomain(TEXT_DOMAIN);
 
@@ -89,6 +93,11 @@ fn setup_actions(app: &adw::Application) {
                     "Use one mouse and keyboard across your computers.",
                 ))
                 .build();
+            // Translators: your names, one per line, shown in the About dialog.
+            let credits = gettextrs::gettext("translator-credits");
+            if credits != "translator-credits" {
+                dialog.set_translator_credits(&credits);
+            }
             dialog.present(app.active_window().as_ref());
         })
         .build();
@@ -123,17 +132,3 @@ pub fn data_directory() -> PathBuf {
     base.join("rinflow")
 }
 
-/// Where the translations are: next to the binary's prefix, or wherever
-/// `RINFLOW_LOCALEDIR` says during development.
-fn locale_directory() -> PathBuf {
-    if let Some(dir) = std::env::var_os("RINFLOW_LOCALEDIR") {
-        return PathBuf::from(dir);
-    }
-    let prefix = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().and_then(|bin| bin.parent()).map(Path::to_path_buf))
-        .unwrap_or_else(|| PathBuf::from("/usr"));
-    prefix.join("share").join("locale")
-}
-
-use std::path::Path;
