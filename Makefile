@@ -1,5 +1,5 @@
-# Day-to-day: `make run` builds and starts the window (which starts the
-# agent); `make test` runs the unit tests; `make install` puts a release
+# Day-to-day: `make` (= `make run`) builds, closes any Rinflow already
+# running, and starts the window (which starts the agent); `make test` runs the unit tests; `make install` puts a release
 # build under PREFIX (default /usr/local) with the desktop files, the
 # translations and the systemd user service.
 #
@@ -25,7 +25,10 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-i18n e2e-window-i18n e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
+.PHONY: all build release test check-po e2e e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall locale pot check
+
+# `make` alone runs the window; `make all` only builds.
+.DEFAULT_GOAL := run
 
 all: build
 
@@ -72,6 +75,17 @@ e2e-i18n: build
 e2e-window-i18n: build locale
 	xvfb-run -a dbus-run-session -- python3 tests/e2e_window_i18n.py ./target/debug/rinflow $(SHOTS)
 
+# The arrangement canvas with a real pointer (XTest through AT-SPI) against
+# a stand-in agent: click, drag from the strip, unplace, Escape, previews one
+# at a time. Same needs as e2e-window-i18n.
+e2e-canvas: build locale
+	xvfb-run -a -s "-screen 0 1280x1024x24" dbus-run-session -- python3 tests/e2e_canvas.py ./target/debug/rinflow ./target/debug/rinflow-agent $(SHOTS)
+
+# The pairing dialog against a stand-in agent: asked once, an answer is
+# final, an accepted pairing waits in a banner that can cancel it.
+e2e-window-pairing: build locale
+	xvfb-run -a -s "-screen 0 1280x1024x24" dbus-run-session -- python3 tests/e2e_window_pairing.py ./target/debug/rinflow ./target/debug/rinflow-agent
+
 # The crossing on two real GNOME desktops: Mutter headless + the GNOME portal
 # backend on each side; the permission dialogs are pressed through AT-SPI.
 # Needs mutter, xdg-desktop-portal-gnome, dbus, at-spi2-core, python3-gi,
@@ -108,12 +122,53 @@ target/data/$(APP_ID).metainfo.xml: data/$(APP_ID).metainfo.xml.in $(PO) po/LING
 	msgfmt --xml --template=$< -d po -o $@
 
 # Runs the window from the build tree; it finds the translations in
-# target/locale by itself (so does the agent it starts).
+# target/locale by itself (so does the agent it starts). Whatever Rinflow
+# this user already runs (an older window, an agent left in the background,
+# the installed user service) is closed first, once the build is done, so
+# the window and its agent both come from this build. An agent that already
+# runs this very binary is kept: a new one would make GNOME before 51 ask
+# for the capture permission again.
 run: build locale
+	@$(call stop_all,keep-this-build)
 	RUST_LOG=info ./target/debug/rinflow
 
+# The agent alone in this terminal, with its log. `make run` from another
+# terminal then adds the window and keeps this agent (same build).
 run-agent: build
+	@$(call stop_all)
 	RUST_LOG=debug ./target/debug/rinflow-agent
+
+# Closes every Rinflow of this user, this build's agent too.
+stop:
+	@$(call stop_all)
+
+# Stops the systemd user service if it runs (it would restart the agent
+# otherwise), then every rinflow and rinflow-agent of this user: SIGTERM,
+# then SIGKILL for whatever is still there after 5 s. With an argument,
+# keeps an agent whose binary is target/debug/rinflow-agent as it is now
+# (same file; a rebuilt agent is a new file, so the old one goes).
+STOP_PATTERN := ^(rinflow|rinflow-agent)$$
+KEEP_BINARY := target/debug/rinflow-agent
+define stop_all
+if systemctl --user is-active --quiet rinflow-agent.service 2>/dev/null; then \
+	  echo "stopping the rinflow-agent user service"; systemctl --user stop rinflow-agent.service; \
+	fi; \
+	current=$$(stat -c %d:%i $(KEEP_BINARY) 2>/dev/null); pids=""; \
+	for pid in $$(pgrep -u "$$(id -u)" '$(STOP_PATTERN)'); do \
+	  if [ -n "$(1)" ] && [ -n "$$current" ] && [ "$$(stat -L -c %d:%i /proc/$$pid/exe 2>/dev/null)" = "$$current" ]; then \
+	    echo "keeping the agent ($$pid): already this build"; \
+	  else pids="$$pids $$pid"; fi; \
+	done; \
+	if [ -n "$$pids" ]; then \
+	  echo "closing:$$(for p in $$pids; do printf ' %s %s' $$p "$$(cat /proc/$$p/comm 2>/dev/null)"; done)"; \
+	  kill $$pids 2>/dev/null; \
+	  for i in $$(seq 50); do \
+	    alive=""; for p in $$pids; do kill -0 $$p 2>/dev/null && alive="$$alive $$p"; done; \
+	    [ -z "$$alive" ] && break; sleep 0.1; \
+	  done; \
+	  if [ -n "$$alive" ]; then kill -KILL $$alive 2>/dev/null; echo "killed what was still running after 5 s:$$alive"; fi; \
+	fi
+endef
 
 # Refreshes po/rinflow.pot from the files in po/POTFILES and merges it into
 # each language. Rust and Blueprint are read as C (xgettext has no Rust

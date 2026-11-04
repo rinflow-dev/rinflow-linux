@@ -63,6 +63,8 @@ tests/e2e_clipboard.py     the clipboard following the pointer both ways, the se
 tests/e2e_systemd.py       an agent started before the desktop (the user service) finds it through systemd, and lets go of it
 tests/e2e_i18n.py          the agent's text goes out untranslated whatever its environment; the language setting is kept and checked
 tests/e2e_window_i18n.py   the window changes language while it runs, read through AT-SPI (make e2e-window-i18n)
+tests/e2e_canvas.py        the arrangement canvas under a real pointer, against a stand-in agent (make e2e-canvas)
+tests/e2e_window_pairing.py  the pairing dialog: asked once, an accepted pairing waits in a banner (make e2e-window-pairing)
 tests/check_po.py          every language complete, placeholders intact (make check-po)
 tests/e2e_gnome_clipboard.py  the clipboard on two real Mutter desktops: GTK copies on one, GTK pastes on the other (clipapp.py)
 shell/                     rinflow-shell, shared by agent and app: state snapshot, IPC protocol, settings, trust, identity, arrangement
@@ -93,7 +95,9 @@ sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev bluepr
 # Fedora
 sudo dnf install gtk4-devel libadwaita-devel blueprint-compiler gettext
 
-make run        # debug build, starts the window (which starts the agent)
+make            # = make run: debug build, closes any Rinflow already running (window, agent, user service), starts the window (which starts the agent)
+make run-agent  # the agent alone with its debug log; then ./target/debug/rinflow from another terminal for the window
+make stop       # closes every rinflow / rinflow-agent of this user
 make test       # unit tests of the workspace
 make e2e        # two agents on this machine: discovery, pairing, connection, placement sync (no display needed)
 make e2e-crossing  # the crossing itself, with tests/fakedesk standing in for the compositors (needs dbus-daemon)
@@ -108,6 +112,8 @@ make e2e-controlled  # a real desktop (Mutter or KWin, RINFLOW_TEST_DESKTOP) as 
 # checks the default port 42421 and needs it free.
 make e2e-i18n     # the agent's text goes out untranslated; the language setting (no display needed)
 make e2e-window-i18n  # the window switching language live, under Xvfb (AT-SPI)
+make e2e-canvas   # dragging in the arrangement: click, strip, unplace, Escape, magnet and previews (Xvfb, XTest)
+make e2e-window-pairing  # the pairing dialog asks once; accepted, it waits in a banner (Xvfb, AT-SPI)
 make check      # translations complete (check-po) + desktop-file-validate + appstreamcli validate on the translated files
 sudo make install && systemctl --user enable --now rinflow-agent
 ```

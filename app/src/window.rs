@@ -23,6 +23,8 @@ mod imp {
         #[template_child]
         pub error_banner: TemplateChild<adw::Banner>,
         #[template_child]
+        pub pairing_banner: TemplateChild<adw::Banner>,
+        #[template_child]
         pub menu_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub stack: TemplateChild<adw::ViewStack>,
@@ -74,7 +76,11 @@ mod imp {
         pub device_rows: RefCell<Vec<adw::ActionRow>>,
         pub nearby_rows: RefCell<Vec<adw::ActionRow>>,
         pub empty_rows: RefCell<Vec<adw::ActionRow>>,
-        pub pairing_dialog: RefCell<Option<(String, adw::AlertDialog)>>,
+        /// The pairing dialog open now, for this peer and code.
+        pub pairing_dialog: RefCell<Option<((String, String), adw::AlertDialog)>>,
+        /// The pairing (peer and code) the user answered here: its dialog
+        /// is not shown again, however many snapshots still carry it.
+        pub pairing_answered: RefCell<Option<(String, String)>>,
         /// The template's text in English, by object and property: the
         /// template is built untranslated, and translated from these
         /// whenever the language changes.
@@ -175,6 +181,11 @@ impl RinflowWindow {
             client,
             move |peer, offset| client.set_placement(peer, offset)
         ));
+        canvas.connect_unplace(glib::clone!(
+            #[strong]
+            client,
+            move |peer| client.remove_placement(peer)
+        ));
         canvas.connect_preview(glib::clone!(
             #[strong]
             client,
@@ -207,6 +218,16 @@ impl RinflowWindow {
             #[strong]
             client,
             move |_| client.clear_error()
+        ));
+        // Cancels the pairing that waits for the other device.
+        imp.pairing_banner.connect_button_clicked(glib::clone!(
+            #[strong]
+            client,
+            move |_| {
+                if let Some(pairing) = client.snapshot().and_then(|snapshot| snapshot.pairing) {
+                    client.reject_pairing(&pairing.peer_id);
+                }
+            }
         ));
         imp.capture_retry.connect_clicked(glib::clone!(
             #[strong]
@@ -419,7 +440,6 @@ impl RinflowWindow {
         }
 
         self.render(snapshot);
-        self.apply_pairing(snapshot);
 
         let settings = &snapshot.settings;
         imp.sharing_row.set_active(settings.sharing);
@@ -440,6 +460,8 @@ impl RinflowWindow {
     /// What a snapshot says, in words: errors, input, devices, this device.
     fn render(&self, snapshot: &Snapshot) {
         let imp = self.imp();
+        // First: a new language redraws the banner's words.
+        self.apply_pairing(snapshot);
         match &snapshot.last_error {
             Some(error) => {
                 imp.error_banner.set_title(&error.translate());
@@ -471,7 +493,7 @@ impl RinflowWindow {
             .collect();
         if let Some(canvas) = imp.canvas.get() {
             let online: HashSet<String> = snapshot.peers.iter().map(|p| p.id.clone()).collect();
-            canvas.set_layout(snapshot.layout.clone(), connected, online, snapshot.driving.clone());
+            canvas.set_layout(snapshot.layout.clone(), &snapshot.device_name, connected, online, snapshot.driving.clone());
         }
     }
 
@@ -659,70 +681,89 @@ impl RinflowWindow {
         *imp.nearby_rows.borrow_mut() = nearby_rows;
     }
 
+    /// A pairing asks once, in a dialog. Answered (an alert dialog closes on
+    /// any answer), it is not asked again: accepted, it waits for the other
+    /// device in a banner, which can cancel it, without blocking the window.
+    /// A new pairing (another device, or a new code) asks anew.
     fn apply_pairing(&self, snapshot: &Snapshot) {
         let imp = self.imp();
-        let current = imp.pairing_dialog.borrow().as_ref().map(|(peer, _)| peer.clone());
-        match (&snapshot.pairing, current) {
-            (Some(pairing), Some(peer)) if peer == pairing.peer_id => {
-                if let Some((_, dialog)) = imp.pairing_dialog.borrow().as_ref()
-                    && pairing.accepted
-                {
-                    dialog.set_body(&tr("Waiting for the other device to confirm…"));
-                    dialog.set_response_enabled("accept", false);
+        let Some(pairing) = &snapshot.pairing else {
+            self.close_pairing();
+            imp.pairing_answered.borrow_mut().take();
+            imp.pairing_banner.set_revealed(false);
+            return;
+        };
+        let key = (pairing.peer_id.clone(), pairing.code.clone());
+        let code = format!("{} {}", &pairing.code[..3.min(pairing.code.len())], &pairing.code[3.min(pairing.code.len())..]);
+        let answered = pairing.accepted || imp.pairing_answered.borrow().as_ref() == Some(&key);
+        if answered {
+            self.close_pairing();
+            imp.pairing_banner.set_title(&trf(
+                // Translators: {name} is the other device's name, {code} the six digits both devices show.
+                "Waiting for {name} to accept the pairing (code {code}). Accept it there too.",
+                &[("name", &pairing.name), ("code", &code)],
+            ));
+            imp.pairing_banner.set_revealed(pairing.accepted);
+            return;
+        }
+        imp.pairing_banner.set_revealed(false);
+        if imp.pairing_dialog.borrow().as_ref().is_some_and(|(open, _)| *open == key) {
+            return;
+        }
+        self.close_pairing();
+        let dialog = adw::AlertDialog::builder()
+            // Translators: {name} is the other device's name.
+            .heading(trf("Pair with {name}", &[("name", &pairing.name)]))
+            .body(tr("Check that the other device shows the same six digits, then accept on both."))
+            .close_response("reject")
+            .default_response("accept")
+            .build();
+        let label = gtk::Label::builder()
+            .label(&code)
+            .css_classes(["title-1", "monospace"])
+            .selectable(true)
+            .margin_top(12)
+            .margin_bottom(6)
+            .build();
+        dialog.set_extra_child(Some(&label));
+        dialog.add_response("reject", &tr("Reject"));
+        dialog.set_response_appearance("reject", adw::ResponseAppearance::Destructive);
+        dialog.add_response("accept", &tr("Accept"));
+        dialog.set_response_appearance("accept", adw::ResponseAppearance::Suggested);
+        dialog.connect_response(
+            None,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                #[strong]
+                key,
+                move |_, response| {
+                    let imp = window.imp();
+                    *imp.pairing_answered.borrow_mut() = Some(key.clone());
+                    match response {
+                        "accept" => imp.client.accept_pairing(&key.0),
+                        _ => imp.client.reject_pairing(&key.0),
+                    }
+                }
+            ),
+        );
+        dialog.connect_closed(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |closed| {
+                let mut open = window.imp().pairing_dialog.borrow_mut();
+                if open.as_ref().is_some_and(|(_, dialog)| dialog == closed) {
+                    open.take();
                 }
             }
-            (Some(pairing), _) => {
-                self.close_pairing();
-                let dialog = adw::AlertDialog::builder()
-                    // Translators: {name} is the other device's name.
-                    .heading(trf("Pair with {name}", &[("name", &pairing.name)]))
-                    .body(tr("Check that the other device shows the same six digits, then accept on both."))
-                    .close_response("reject")
-                    .default_response("accept")
-                    .build();
-                let code = gtk::Label::builder()
-                    .label(format!("{} {}", &pairing.code[..3.min(pairing.code.len())], &pairing.code[3.min(pairing.code.len())..]))
-                    .css_classes(["title-1", "monospace"])
-                    .selectable(true)
-                    .margin_top(12)
-                    .margin_bottom(6)
-                    .build();
-                dialog.set_extra_child(Some(&code));
-                dialog.add_response("reject", &tr("Reject"));
-                dialog.set_response_appearance("reject", adw::ResponseAppearance::Destructive);
-                dialog.add_response("accept", &tr("Accept"));
-                dialog.set_response_appearance("accept", adw::ResponseAppearance::Suggested);
-                let peer_id = pairing.peer_id.clone();
-                dialog.connect_response(
-                    None,
-                    glib::clone!(
-                        #[weak(rename_to = window)]
-                        self,
-                        move |_, response| {
-                            match response {
-                                "accept" => window.imp().client.accept_pairing(&peer_id),
-                                _ => window.imp().client.reject_pairing(&peer_id),
-                            }
-                        }
-                    ),
-                );
-                dialog.connect_closed(glib::clone!(
-                    #[weak(rename_to = window)]
-                    self,
-                    move |_| {
-                        *window.imp().pairing_dialog.borrow_mut() = None;
-                    }
-                ));
-                dialog.present(Some(self));
-                *imp.pairing_dialog.borrow_mut() = Some((pairing.peer_id.clone(), dialog));
-            }
-            (None, Some(_)) => self.close_pairing(),
-            (None, None) => {}
-        }
+        ));
+        dialog.present(Some(self));
+        *imp.pairing_dialog.borrow_mut() = Some((key, dialog));
     }
 
     fn close_pairing(&self) {
-        if let Some((_, dialog)) = self.imp().pairing_dialog.borrow_mut().take() {
+        let open = self.imp().pairing_dialog.borrow_mut().take();
+        if let Some((_, dialog)) = open {
             dialog.force_close();
         }
     }
@@ -848,14 +889,14 @@ fn clipboard_subtitle(snapshot: &Snapshot) -> String {
     }
 }
 
-fn platform_icon(platform: &str) -> &'static str {
+pub(crate) fn platform_icon(platform: &str) -> &'static str {
     match platform {
         "android" => "phone-symbolic",
         _ => "computer-symbolic",
     }
 }
 
-fn platform_name(platform: &str) -> String {
+pub(crate) fn platform_name(platform: &str) -> String {
     match platform {
         "macos" => "macOS".to_owned(),
         "windows" => "Windows".to_owned(),

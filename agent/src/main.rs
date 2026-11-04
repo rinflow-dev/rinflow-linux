@@ -194,6 +194,7 @@ async fn run() -> i32 {
                     continue;
                 };
                 let Ok(event) = serde_json::from_str::<serde_json::Value>(&json) else { continue };
+                log_core_event(&event);
                 driver.core_event(&event);
                 if event["event"] == "clipboard" {
                     received_clipboard(&event, &settings, &core, &backends);
@@ -288,6 +289,25 @@ async fn run() -> i32 {
     drop(core);
     let _ = std::fs::remove_file(paths::socket_path());
     0
+}
+
+/// Sessions and pairing in the log, to tell afterwards why a device didn't
+/// connect or pair: which device, and the reason the core gives. Nothing
+/// else of the event (no codes, no clipboard).
+fn log_core_event(event: &serde_json::Value) {
+    let Some(kind @ ("connected" | "disconnected" | "pairing_requested" | "paired" | "pairing_ended" | "unpaired" | "error")) =
+        event["event"].as_str()
+    else {
+        return;
+    };
+    let field = |key: &str| event[key].as_str().unwrap_or_default();
+    let peer = [field("peer_id"), field("peer")].into_iter().find(|id| !id.is_empty()).unwrap_or("-");
+    let detail = [field("reason"), field("message")].into_iter().find(|text| !text.is_empty()).unwrap_or("");
+    if kind == "error" || (kind == "disconnected" && !detail.is_empty()) {
+        log::warn!("core {kind}: {peer} {detail}");
+    } else {
+        log::info!("core {kind}: {peer} {detail}");
+    }
 }
 
 /// What the window says when the core stopped (it only does at start-up).

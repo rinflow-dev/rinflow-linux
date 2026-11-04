@@ -27,9 +27,25 @@ or found broken.
   A change now goes Disable → set → Enable, and unchanged barriers are not
   set again. tests/fakedesk refuses as Mutter does; `make e2e-crossing`
   moves a placed device while enabled.
-- **The arrangement's shelf** (fixed): only devices on the network now wait
-  there, in rows. It listed every device ever seen in one row, which shrank
-  the arrangement to a sliver and made a small drag land far off.
+- **Arranging by dragging** (reworked, as on Windows): the view holds still
+  while a device moves (it re-fitted on every frame, so the device drifted
+  away from the pointer); a click no longer places a device; the agent's
+  snap shows as a dashed outline, and close to it the device jumps there
+  like a magnet; a dropped device glides to its spot instead of jumping back
+  until the agent answers; the user's online devices that aren't placed wait
+  as chips on a strip at the bottom, and a placed device dropped there is
+  unplaced; Escape or a lost pointer puts a dragged device back; previews
+  are asked one at a time. The window also lost requests to the agent when
+  two were written at once (GIO takes one write at a time), the drop right
+  after a preview among them: they now go out in order.
+- **The pairing dialog** (fixed): it came back right after Accept (an
+  alert dialog closes on any answer, and the next snapshot, which still
+  carries the pairing, opened a new one), blocking the window with only
+  Reject until the other device answered or two minutes passed. A pairing
+  now asks once; accepted, it waits in a banner whose Cancel declines it.
+  The agent logs sessions and pairing (`core connected/disconnected/
+  pairing_requested/paired/pairing_ended: <peer> <reason>`), to tell why a
+  device didn't pair.
 - **Languages** (new): English, Simplified Chinese and Japanese, in the
   window, the agent's own messages, the desktop entry and the AppStream
   metainfo, all from GNU gettext catalogs (`po/`). The agent sends its
@@ -52,6 +68,8 @@ or found broken.
 | Catalog choice as libc makes it (`LANGUAGE` list, the C locale, `zh`/`zh_SG` → `zh_CN`), the setting over it; one-pass placeholders | unit tests | `cargo test -p rinflow-shell` | pass |
 | Translations complete and well-formed; the translated desktop entry and metainfo valid | same | `make check` (check-po, desktop-file-validate, appstreamcli) | pass |
 | The window in Japanese on a real GNOME 48 session | Debian 13 desktop | by hand, `LANGUAGE=ja`, read through AT-SPI | every label translated |
+| The arrangement under a real pointer: a click places nothing, a chip dragged beside the screen is placed, a device dropped on the strip unplaced, Escape puts back, one preview at a time | the window under Xvfb, a stand-in agent | `make e2e-canvas` (XTest through AT-SPI) | pass |
+| The pairing dialog: asked once, Accept final under repeated snapshots, the banner's Cancel declines, a new code asks again | the window under Xvfb, a stand-in agent | `make e2e-window-pairing` (AT-SPI) | pass |
 | Service started before the desktop; desktop going away | fake desktop + fake systemd manager | `make e2e-systemd` | pass |
 | The crossing between two real GNOME desktops | Mutter 48.7 headless + xdg-desktop-portal-gnome 48 + xdg-desktop-portal 1.20, x86_64 | `make e2e-gnome` | pass |
 | A real GNOME desktop as the controlled device | same | `make e2e-controlled` | pass |

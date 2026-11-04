@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-04 00:56+0000\n"
+"POT-Creation-Date: 2026-11-04 13:09+0900\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -60,13 +60,13 @@ msgid "No graphical session was found."
 msgstr ""
 
 #. Translators: {detail} is the system's error message, in English.
-#: agent/src/main.rs:297
+#: agent/src/main.rs:317
 msgid ""
 "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
 "running. Choose another port in Settings, then restart the agent. ({detail})"
 msgstr ""
 
-#: agent/src/main.rs:301
+#: agent/src/main.rs:321
 msgid "Rinflow's core didn't start: {detail}"
 msgstr ""
 
@@ -82,22 +82,50 @@ msgstr ""
 msgid "The core is shutting down"
 msgstr ""
 
-#: app/src/agent.rs:121
+#: app/src/agent.rs:127
 msgid "The agent couldn't be started: {error}"
 msgstr ""
 
-#: app/src/agent.rs:126
+#: app/src/agent.rs:132
 msgid "The agent isn't answering ({error})"
 msgstr ""
 
-#: app/src/agent.rs:153
+#: app/src/agent.rs:161
 msgid ""
 "The agent and this window are different versions; update both ({version} / "
 "{protocol})"
 msgstr ""
 
-#: app/src/canvas.rs:287
+#: app/src/canvas.rs:459 data/ui/window.blp:93
+msgid "Arrangement"
+msgstr ""
+
+#: app/src/canvas.rs:819 app/src/canvas.rs:829
 msgid "This device"
+msgstr ""
+
+#: app/src/canvas.rs:1086
+msgid "Release to unplace"
+msgstr ""
+
+#: app/src/canvas.rs:1088
+msgid "Drag a device here to unplace it"
+msgstr ""
+
+#: app/src/canvas.rs:1090
+msgid "Connect a device, then drag it next to your screen here"
+msgstr ""
+
+#: app/src/canvas.rs:1154 app/src/window.rs:520
+msgid "Connected"
+msgstr ""
+
+#: app/src/canvas.rs:1156 app/src/window.rs:537
+msgid "Online"
+msgstr ""
+
+#: app/src/canvas.rs:1158 app/src/window.rs:538
+msgid "Offline"
 msgstr ""
 
 #: app/src/main.rs:113
@@ -110,257 +138,247 @@ msgstr ""
 msgid "translator-credits"
 msgstr ""
 
-#: app/src/window.rs:350
+#: app/src/window.rs:371
 msgid "Swap ⌘ and Control (⌘C copies here)"
 msgstr ""
 
-#: app/src/window.rs:350
+#: app/src/window.rs:371
 msgid "Keep each key in its place"
 msgstr ""
 
-#: app/src/window.rs:352 app/src/window.rs:356
+#: app/src/window.rs:373 app/src/window.rs:377
 msgid "Follow the system"
 msgstr ""
 
-#: app/src/window.rs:352
+#: app/src/window.rs:373
 msgid "Light"
 msgstr ""
 
-#: app/src/window.rs:352
+#: app/src/window.rs:373
 msgid "Dark"
 msgstr ""
 
-#: app/src/window.rs:395
+#: app/src/window.rs:416
 msgid "Starting the Rinflow agent…"
 msgstr ""
 
-#: app/src/window.rs:462
+#: app/src/window.rs:484
 msgid "Not started yet"
 msgstr ""
 
-#: app/src/window.rs:498
-msgid "Connected"
-msgstr ""
-
 #. Translators: the time a message takes to the other device and back.
-#: app/src/window.rs:502
+#: app/src/window.rs:524
 msgid "{ms} ms"
 msgstr ""
 
-#: app/src/window.rs:506
+#: app/src/window.rs:528
 msgid "controlling this device"
 msgstr ""
 
-#: app/src/window.rs:510
+#: app/src/window.rs:532
 msgid "you are controlling it"
 msgstr ""
 
-#: app/src/window.rs:514 app/src/window.rs:598
+#: app/src/window.rs:536 app/src/window.rs:620
 msgid "Connecting…"
 msgstr ""
 
-#: app/src/window.rs:515
-msgid "Online"
-msgstr ""
-
-#: app/src/window.rs:516
-msgid "Offline"
-msgstr ""
-
-#: app/src/window.rs:523
+#: app/src/window.rs:545
 msgid "not placed"
 msgstr ""
 
-#: app/src/window.rs:527
+#: app/src/window.rs:549
 msgid "not paired"
 msgstr ""
 
-#: app/src/window.rs:533
+#: app/src/window.rs:555
 msgid "Disconnect"
 msgstr ""
 
-#: app/src/window.rs:533 app/src/window.rs:598
+#: app/src/window.rs:555 app/src/window.rs:620
 msgid "Connect"
 msgstr ""
 
-#: app/src/window.rs:546
+#: app/src/window.rs:568
 msgid "Place on the left"
 msgstr ""
 
-#: app/src/window.rs:547
+#: app/src/window.rs:569
 msgid "Place on the right"
 msgstr ""
 
-#: app/src/window.rs:548
+#: app/src/window.rs:570
 msgid "Place above"
 msgstr ""
 
-#: app/src/window.rs:549
+#: app/src/window.rs:571
 msgid "Place below"
 msgstr ""
 
-#: app/src/window.rs:559
+#: app/src/window.rs:581
 msgid "Remove placement"
 msgstr ""
 
-#: app/src/window.rs:561
+#: app/src/window.rs:583
 msgid "Forget this device"
 msgstr ""
 
-#: app/src/window.rs:575
+#: app/src/window.rs:597
 msgid "No devices yet"
 msgstr ""
 
-#: app/src/window.rs:576
+#: app/src/window.rs:598
 msgid "Devices that connect once stay here. Nearby devices are listed below."
 msgstr ""
 
-#: app/src/window.rs:612
+#: app/src/window.rs:634
 msgid "found"
 msgstr ""
 
-#: app/src/window.rs:613
+#: app/src/window.rs:635
 msgid "no response"
 msgstr ""
 
-#: app/src/window.rs:614
+#: app/src/window.rs:636
 msgid "address not found"
 msgstr ""
 
-#: app/src/window.rs:615
+#: app/src/window.rs:637
 msgid "searching…"
 msgstr ""
 
-#: app/src/window.rs:619
+#: app/src/window.rs:641
 msgid "Added by address"
 msgstr ""
 
-#: app/src/window.rs:626
+#: app/src/window.rs:648
 msgid "Remove this address"
 msgstr ""
 
-#: app/src/window.rs:651
+#: app/src/window.rs:673
 msgid "Nothing nearby"
 msgstr ""
 
-#: app/src/window.rs:652
+#: app/src/window.rs:674
 msgid "Open Rinflow on another device on this network, or add it by address."
 msgstr ""
 
-#: app/src/window.rs:670
-msgid "Waiting for the other device to confirm…"
+#. Translators: {name} is the other device's name, {code} the six digits both devices show.
+#: app/src/window.rs:703
+msgid ""
+"Waiting for {name} to accept the pairing (code {code}). Accept it there too."
 msgstr ""
 
 #. Translators: {name} is the other device's name.
-#: app/src/window.rs:678
+#: app/src/window.rs:716
 msgid "Pair with {name}"
 msgstr ""
 
-#: app/src/window.rs:679
+#: app/src/window.rs:717
 msgid ""
 "Check that the other device shows the same six digits, then accept on both."
 msgstr ""
 
-#: app/src/window.rs:691
+#: app/src/window.rs:729
 msgid "Reject"
 msgstr ""
 
-#: app/src/window.rs:693
+#: app/src/window.rs:731
 msgid "Accept"
 msgstr ""
 
 #. Translators: {name} is a device's name.
-#: app/src/window.rs:739
+#: app/src/window.rs:780
 msgid "Forget {name}?"
 msgstr ""
 
-#: app/src/window.rs:740
+#: app/src/window.rs:781
 msgid ""
 "It is disconnected, unplaced and unpaired. It shows up again as a nearby "
 "device while it is online."
 msgstr ""
 
-#: app/src/window.rs:743 app/src/window.rs:769
+#: app/src/window.rs:784 app/src/window.rs:810 data/ui/window.blp:40
 msgid "Cancel"
 msgstr ""
 
-#: app/src/window.rs:744
+#: app/src/window.rs:785
 msgid "Forget"
 msgstr ""
 
-#: app/src/window.rs:760
+#: app/src/window.rs:801
 msgid "Add a Device by Address"
 msgstr ""
 
-#: app/src/window.rs:761
+#: app/src/window.rs:802
 msgid ""
 "For networks that don't carry discovery (guest Wi-Fi, VPNs): the other "
 "device's IP address or name. Only one of the two needs the other's address."
 msgstr ""
 
-#: app/src/window.rs:765
+#: app/src/window.rs:806
 msgid "Address"
 msgstr ""
 
-#: app/src/window.rs:770 data/ui/window.blp:103
+#: app/src/window.rs:811 data/ui/window.blp:109
 msgid "Add"
 msgstr ""
 
-#: app/src/window.rs:811
+#: app/src/window.rs:852
 msgid "Ready: move the pointer off the edge toward a placed device."
 msgstr ""
 
-#: app/src/window.rs:813
+#: app/src/window.rs:854
 msgid "Ready: placed devices can move their pointer here."
 msgstr ""
 
-#: app/src/window.rs:821
+#: app/src/window.rs:862
 msgid "Connecting to the desktop…"
 msgstr ""
 
-#: app/src/window.rs:843 data/ui/window.blp:136
+#: app/src/window.rs:884 data/ui/window.blp:142
 msgid ""
 "Text and images copied here go along when the pointer moves to another "
 "device, and come back with it."
 msgstr ""
 
-#: app/src/window.rs:845
+#: app/src/window.rs:886
 msgid ""
 "This desktop doesn't share its clipboard with Rinflow. It needs the "
 "clipboard portal (GNOME 45 or Plasma 6.2 and newer)."
 msgstr ""
 
-#: app/src/window.rs:847
+#: app/src/window.rs:888
 msgid ""
 "Available once other devices may control this one: the clipboard comes with "
 "that permission."
 msgstr ""
 
-#: app/src/window.rs:864
+#: app/src/window.rs:905
 msgid "Device"
 msgstr ""
 
-#: app/src/window.rs:871
+#: app/src/window.rs:912
 msgid "on the left"
 msgstr ""
 
-#: app/src/window.rs:872
+#: app/src/window.rs:913
 msgid "on the right"
 msgstr ""
 
-#: app/src/window.rs:873
+#: app/src/window.rs:914
 msgid "above"
 msgstr ""
 
-#: app/src/window.rs:874
+#: app/src/window.rs:915
 msgid "below"
 msgstr ""
 
-#: app/src/window.rs:892
+#: app/src/window.rs:933
 msgid "_Quit Rinflow Agent"
 msgstr ""
 
-#: app/src/window.rs:895
+#: app/src/window.rs:936
 msgid "_About Rinflow"
 msgstr ""
 
@@ -372,133 +390,129 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
-#: data/ui/window.blp:42
+#: data/ui/window.blp:48
 msgid "Devices"
 msgstr ""
 
-#: data/ui/window.blp:47
+#: data/ui/window.blp:53
 msgid "This Device"
 msgstr ""
 
-#: data/ui/window.blp:50
+#: data/ui/window.blp:56
 msgid "Controlling other devices"
 msgstr ""
 
-#: data/ui/window.blp:59 data/ui/window.blp:77
+#: data/ui/window.blp:65 data/ui/window.blp:83
 msgid "Ask Again"
 msgstr ""
 
-#: data/ui/window.blp:68
+#: data/ui/window.blp:74
 msgid "Being controlled by other devices"
 msgstr ""
 
-#: data/ui/window.blp:87
-msgid "Arrangement"
-msgstr ""
-
-#: data/ui/window.blp:88
+#: data/ui/window.blp:94
 msgid ""
 "Drag a device to the side of this screen it sits on. The pointer crosses "
 "where they touch."
 msgstr ""
 
-#: data/ui/window.blp:92
+#: data/ui/window.blp:98
 msgid "My Devices"
 msgstr ""
 
-#: data/ui/window.blp:97
+#: data/ui/window.blp:103
 msgid "Add a device by address"
 msgstr ""
 
-#: data/ui/window.blp:109
+#: data/ui/window.blp:115
 msgid "Nearby Devices"
 msgstr ""
 
-#: data/ui/window.blp:110
+#: data/ui/window.blp:116
 msgid "Devices found on this network that haven't connected yet."
 msgstr ""
 
-#: data/ui/window.blp:117
+#: data/ui/window.blp:123
 msgid "Settings"
 msgstr ""
 
-#: data/ui/window.blp:122
+#: data/ui/window.blp:128
 msgid "Sharing"
 msgstr ""
 
-#: data/ui/window.blp:125
+#: data/ui/window.blp:131
 msgid "Share mouse and keyboard"
 msgstr ""
 
-#: data/ui/window.blp:126
+#: data/ui/window.blp:132
 msgid "Off pauses crossing in both directions; devices stay connected."
 msgstr ""
 
-#: data/ui/window.blp:130
+#: data/ui/window.blp:136
 msgid "Only paired devices"
 msgstr ""
 
-#: data/ui/window.blp:131
+#: data/ui/window.blp:137
 msgid "New devices must pair with a six-digit code first."
 msgstr ""
 
-#: data/ui/window.blp:135
+#: data/ui/window.blp:141
 msgid "Share the clipboard"
 msgstr ""
 
-#: data/ui/window.blp:140
+#: data/ui/window.blp:146
 msgid "Start when I sign in"
 msgstr ""
 
-#: data/ui/window.blp:145
+#: data/ui/window.blp:151
 msgid "Keyboard"
 msgstr ""
 
-#: data/ui/window.blp:148
+#: data/ui/window.blp:154
 msgid "Modifier keys from a Mac"
 msgstr ""
 
-#: data/ui/window.blp:149
+#: data/ui/window.blp:155
 msgid "What ⌘ and Control play as when a Mac controls this device."
 msgstr ""
 
-#: data/ui/window.blp:154
+#: data/ui/window.blp:160
 msgid "Appearance"
 msgstr ""
 
-#: data/ui/window.blp:157
+#: data/ui/window.blp:163
 msgid "Theme"
 msgstr ""
 
-#: data/ui/window.blp:161
+#: data/ui/window.blp:167
 msgid "Language"
 msgstr ""
 
-#: data/ui/window.blp:166
+#: data/ui/window.blp:172
 msgid "Network"
 msgstr ""
 
-#: data/ui/window.blp:169
+#: data/ui/window.blp:175
 msgid "Control port (UDP)"
 msgstr ""
 
-#: data/ui/window.blp:170
+#: data/ui/window.blp:176
 msgid "Applies after the agent restarts."
 msgstr ""
 
-#: data/ui/window.blp:187
+#: data/ui/window.blp:193
 msgid "About This Device"
 msgstr ""
 
-#: data/ui/window.blp:190
+#: data/ui/window.blp:196
 msgid "Name"
 msgstr ""
 
-#: data/ui/window.blp:196
+#: data/ui/window.blp:202
 msgid "Certificate fingerprint"
 msgstr ""
 
-#: data/ui/window.blp:203
+#: data/ui/window.blp:209
 msgid "Agent"
 msgstr ""
 

@@ -11,7 +11,8 @@ use rinflow_shell::protocol::PROTOCOL_VERSION;
 use rinflow_shell::state::Snapshot;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::OnceLock;
@@ -43,6 +44,11 @@ type StatusHandler = Box<dyn Fn(&Status)>;
 #[derive(Default)]
 struct Inner {
     output: RefCell<Option<gio::OutputStream>>,
+    /// Lines waiting to be written. A GIO stream takes one write at a time
+    /// (another one meanwhile fails with "outstanding operation" and the
+    /// request is lost), so they go out in order from one writer.
+    outgoing: RefCell<VecDeque<String>>,
+    writing: Cell<bool>,
     snapshot: RefCell<Option<Snapshot>>,
     status: RefCell<Option<Status>>,
     on_snapshot: RefCell<Vec<SnapshotHandler>>,
@@ -135,6 +141,8 @@ impl AgentClient {
 
     async fn serve(&self, connection: gio::SocketConnection) {
         let input = gio::DataInputStream::new(&connection.input_stream());
+        // Whatever was meant for the last connection doesn't go to this one.
+        self.0.outgoing.borrow_mut().clear();
         *self.0.output.borrow_mut() = Some(connection.output_stream());
         self.send(json!({"type": "hello", "protocol": PROTOCOL_VERSION}));
         loop {
@@ -203,19 +211,29 @@ impl AgentClient {
     }
 
     fn send(&self, request: Value) {
-        let Some(output) = self.0.output.borrow().clone() else {
+        if self.0.output.borrow().is_none() {
             log::warn!("not connected to the agent; dropped {request}");
             return;
-        };
+        }
         let mut line = request.to_string();
         line.push('\n');
+        self.0.outgoing.borrow_mut().push_back(line);
+        if self.0.writing.replace(true) {
+            return;
+        }
+        let client = self.clone();
         glib::spawn_future_local(async move {
-            if let Err(error) = output
-                .write_all_future(line.into_bytes(), glib::Priority::DEFAULT)
-                .await
-            {
-                log::warn!("cannot write to the agent: {:?}", error.1);
+            loop {
+                let Some(line) = client.0.outgoing.borrow_mut().pop_front() else { break };
+                let Some(output) = client.0.output.borrow().clone() else { break };
+                if let Err(error) = output
+                    .write_all_future(line.into_bytes(), glib::Priority::DEFAULT)
+                    .await
+                {
+                    log::warn!("cannot write to the agent: {:?}", error.1);
+                }
             }
+            client.0.writing.set(false);
         });
     }
 
