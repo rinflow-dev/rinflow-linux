@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rinflow 0.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-04 00:54+0900\n"
+"POT-Creation-Date: 2026-11-04 00:56+0000\n"
 "PO-Revision-Date: 2026-11-04 12:00+0900\n"
 "Last-Translator: Rinflow\n"
 "Language-Team: Chinese (simplified)\n"
@@ -15,49 +15,50 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: agent/src/backends.rs:248
+#: agent/src/backends.rs:243
 msgid "The desktop is asking whether Rinflow may capture input"
 msgstr "桌面正在询问是否允许 Rinflow 捕获输入"
 
-#: agent/src/backends.rs:253
+#: agent/src/backends.rs:248
 msgid ""
 "Permission to capture input was not given. This device can't control others "
 "until it is requested again and allowed."
 msgstr "没有获得捕获输入的许可。本机不能控制其他设备，直到重新请求并允许。"
 
-#: agent/src/backends.rs:285
+#: agent/src/backends.rs:270
 msgid "The desktop is asking whether Rinflow may control this device"
 msgstr "桌面正在询问是否允许 Rinflow 控制本机"
 
-#: agent/src/backends.rs:294
+#: agent/src/backends.rs:279
 msgid ""
 "Permission to control this device was not given. Other devices can't control "
 "it until it is requested again and allowed."
 msgstr "没有获得控制本机的许可。其他设备不能控制本机，直到重新请求并允许。"
 
-#: agent/src/backends.rs:340
+#: agent/src/backends.rs:320
 msgid "Connecting to the desktop's input capture portal…"
 msgstr "正在连接桌面的输入捕获门户…"
 
-#: agent/src/backends.rs:371
+#: agent/src/backends.rs:351
 msgid "Connecting input playback…"
 msgstr "正在连接输入注入…"
 
-#: agent/src/backends.rs:396
+#: agent/src/backends.rs:376
 msgid ""
 "In Gaming Mode this device can be controlled by others, but can't control "
 "them."
 msgstr "游戏模式下本机只能被其他设备控制，不能控制别的设备。"
 
-#: agent/src/backends.rs:400
+#: agent/src/backends.rs:380
 msgid "X11 sessions aren't supported yet; use a Wayland session."
 msgstr "X11 会话暂不支持；请使用 Wayland 会话。"
 
-#: agent/src/backends.rs:405
+#: agent/src/backends.rs:385
 msgid "No graphical session was found."
 msgstr "没有找到图形会话。"
 
-#: agent/src/main.rs:301
+#. Translators: {detail} is the system's error message, in English.
+#: agent/src/main.rs:297
 msgid ""
 "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
 "running. Choose another port in Settings, then restart the agent. ({detail})"
@@ -65,7 +66,7 @@ msgstr ""
 "Rinflow 无法使用 UDP 端口 {port}（可能有另一个 Rinflow 正在运行）。请在“设置”"
 "里换一个端口，然后重新启动后台服务。（{detail}）"
 
-#: agent/src/main.rs:305
+#: agent/src/main.rs:301
 msgid "Rinflow's core didn't start: {detail}"
 msgstr "Rinflow 核心没有启动：{detail}"
 
@@ -77,15 +78,15 @@ msgstr "launch_at_login 需要 true 或 false"
 msgid "Couldn't change “Start when I sign in”: {error}"
 msgstr "无法设置“登录时启动”：{error}"
 
-#: agent/src/services.rs:103
+#: agent/src/services.rs:99
 msgid "The core is shutting down"
 msgstr "核心正在关闭"
 
-#: app/src/agent.rs:119
+#: app/src/agent.rs:121
 msgid "The agent couldn't be started: {error}"
 msgstr "无法启动后台服务：{error}"
 
-#: app/src/agent.rs:125
+#: app/src/agent.rs:126
 msgid "The agent isn't answering ({error})"
 msgstr "后台服务没有响应（{error}）"
 
@@ -99,198 +100,199 @@ msgstr "后台服务和窗口版本不一致，请同时更新两者（{version}
 msgid "This device"
 msgstr "本机"
 
-#: app/src/main.rs:93
+#: app/src/main.rs:113
 msgid "Use one mouse and keyboard across your computers."
 msgstr "用一套键鼠操作你的所有电脑。"
 
-#. Translators: your names, one per line, shown in the About dialog.
-#: app/src/main.rs:97
+#. Translators: your names, one per line, shown in the About
+#. dialog. Leave it as "translator-credits" to show none.
+#: app/src/main.rs:117
 msgid "translator-credits"
-msgstr "Rinflow"
+msgstr "translator-credits"
 
-#: app/src/window.rs:179
+#: app/src/window.rs:350
 msgid "Swap ⌘ and Control (⌘C copies here)"
 msgstr "互换 ⌘ 和 Control（⌘C 在本机就是复制）"
 
-#: app/src/window.rs:180
+#: app/src/window.rs:350
 msgid "Keep each key in its place"
 msgstr "按键保持原位"
 
-#: app/src/window.rs:183 app/src/window.rs:188
+#: app/src/window.rs:352 app/src/window.rs:356
 msgid "Follow the system"
 msgstr "跟随系统"
 
-#: app/src/window.rs:184
+#: app/src/window.rs:352
 msgid "Light"
 msgstr "浅色"
 
-#: app/src/window.rs:185
+#: app/src/window.rs:352
 msgid "Dark"
 msgstr "深色"
 
-#: app/src/window.rs:310
+#: app/src/window.rs:395
 msgid "Starting the Rinflow agent…"
 msgstr "正在启动 Rinflow 后台服务…"
 
-#: app/src/window.rs:365
+#: app/src/window.rs:462
 msgid "Not started yet"
 msgstr "尚未启动"
 
-#: app/src/window.rs:402
+#: app/src/window.rs:498
 msgid "Connected"
 msgstr "已连接"
 
 #. Translators: the time a message takes to the other device and back.
-#: app/src/window.rs:406
+#: app/src/window.rs:502
 msgid "{ms} ms"
 msgstr "{ms} 毫秒"
 
-#: app/src/window.rs:410
+#: app/src/window.rs:506
 msgid "controlling this device"
 msgstr "正在控制本机"
 
-#: app/src/window.rs:414
+#: app/src/window.rs:510
 msgid "you are controlling it"
 msgstr "你正在控制它"
 
-#: app/src/window.rs:418 app/src/window.rs:502
+#: app/src/window.rs:514 app/src/window.rs:598
 msgid "Connecting…"
 msgstr "正在连接…"
 
-#: app/src/window.rs:419
+#: app/src/window.rs:515
 msgid "Online"
 msgstr "在线"
 
-#: app/src/window.rs:420
+#: app/src/window.rs:516
 msgid "Offline"
 msgstr "离线"
 
-#: app/src/window.rs:427
+#: app/src/window.rs:523
 msgid "not placed"
 msgstr "未放置"
 
-#: app/src/window.rs:431
+#: app/src/window.rs:527
 msgid "not paired"
 msgstr "未配对"
 
-#: app/src/window.rs:437
+#: app/src/window.rs:533
 msgid "Disconnect"
 msgstr "断开"
 
-#: app/src/window.rs:437 app/src/window.rs:502
+#: app/src/window.rs:533 app/src/window.rs:598
 msgid "Connect"
 msgstr "连接"
 
-#: app/src/window.rs:450
+#: app/src/window.rs:546
 msgid "Place on the left"
 msgstr "放到左侧"
 
-#: app/src/window.rs:451
+#: app/src/window.rs:547
 msgid "Place on the right"
 msgstr "放到右侧"
 
-#: app/src/window.rs:452
+#: app/src/window.rs:548
 msgid "Place above"
 msgstr "放到上方"
 
-#: app/src/window.rs:453
+#: app/src/window.rs:549
 msgid "Place below"
 msgstr "放到下方"
 
-#: app/src/window.rs:463
+#: app/src/window.rs:559
 msgid "Remove placement"
 msgstr "移除放置"
 
-#: app/src/window.rs:465
+#: app/src/window.rs:561
 msgid "Forget this device"
 msgstr "忘记此设备"
 
-#: app/src/window.rs:479
+#: app/src/window.rs:575
 msgid "No devices yet"
 msgstr "还没有设备"
 
-#: app/src/window.rs:480
+#: app/src/window.rs:576
 msgid "Devices that connect once stay here. Nearby devices are listed below."
 msgstr "连接过一次的设备会留在这里。附近的设备列在下面。"
 
-#: app/src/window.rs:516
+#: app/src/window.rs:612
 msgid "found"
 msgstr "已找到"
 
-#: app/src/window.rs:517
+#: app/src/window.rs:613
 msgid "no response"
 msgstr "没有响应"
 
-#: app/src/window.rs:518
+#: app/src/window.rs:614
 msgid "address not found"
 msgstr "找不到该地址"
 
-#: app/src/window.rs:519
+#: app/src/window.rs:615
 msgid "searching…"
 msgstr "正在查找…"
 
-#: app/src/window.rs:523
+#: app/src/window.rs:619
 msgid "Added by address"
 msgstr "通过地址添加"
 
-#: app/src/window.rs:530
+#: app/src/window.rs:626
 msgid "Remove this address"
 msgstr "移除这个地址"
 
-#: app/src/window.rs:555
+#: app/src/window.rs:651
 msgid "Nothing nearby"
 msgstr "附近没有设备"
 
-#: app/src/window.rs:556
+#: app/src/window.rs:652
 msgid "Open Rinflow on another device on this network, or add it by address."
 msgstr "在同一网络的另一台设备上打开 Rinflow，或者通过地址添加它。"
 
-#: app/src/window.rs:574
+#: app/src/window.rs:670
 msgid "Waiting for the other device to confirm…"
 msgstr "等待对方确认…"
 
 #. Translators: {name} is the other device's name.
-#: app/src/window.rs:582
+#: app/src/window.rs:678
 msgid "Pair with {name}"
 msgstr "与 {name} 配对"
 
-#: app/src/window.rs:583
+#: app/src/window.rs:679
 msgid ""
 "Check that the other device shows the same six digits, then accept on both."
 msgstr "确认对方屏幕上显示同样的六位数字，然后在两边都点接受。"
 
-#: app/src/window.rs:595
+#: app/src/window.rs:691
 msgid "Reject"
 msgstr "拒绝"
 
-#: app/src/window.rs:597
+#: app/src/window.rs:693
 msgid "Accept"
 msgstr "接受"
 
 #. Translators: {name} is a device's name.
-#: app/src/window.rs:643
+#: app/src/window.rs:739
 msgid "Forget {name}?"
 msgstr "忘记 {name}？"
 
-#: app/src/window.rs:644
+#: app/src/window.rs:740
 msgid ""
 "It is disconnected, unplaced and unpaired. It shows up again as a nearby "
 "device while it is online."
 msgstr "它会被断开、移除放置并取消配对。它在线时会重新出现在附近的设备里。"
 
-#: app/src/window.rs:647 app/src/window.rs:673
+#: app/src/window.rs:743 app/src/window.rs:769
 msgid "Cancel"
 msgstr "取消"
 
-#: app/src/window.rs:648
+#: app/src/window.rs:744
 msgid "Forget"
 msgstr "忘记"
 
-#: app/src/window.rs:664
+#: app/src/window.rs:760
 msgid "Add a Device by Address"
 msgstr "通过地址添加设备"
 
-#: app/src/window.rs:665
+#: app/src/window.rs:761
 msgid ""
 "For networks that don't carry discovery (guest Wi-Fi, VPNs): the other "
 "device's IP address or name. Only one of the two needs the other's address."
@@ -298,33 +300,33 @@ msgstr ""
 "用于不传递发现广播的网络（访客 Wi-Fi、VPN）：填对方的 IP 地址或设备名。两台设"
 "备里只需要一台填另一台的地址。"
 
-#: app/src/window.rs:669
+#: app/src/window.rs:765
 msgid "Address"
 msgstr "地址"
 
-#: app/src/window.rs:674 data/ui/window.blp:119
+#: app/src/window.rs:770 data/ui/window.blp:103
 msgid "Add"
 msgstr "添加"
 
-#: app/src/window.rs:715
+#: app/src/window.rs:811
 msgid "Ready: move the pointer off the edge toward a placed device."
 msgstr "就绪：把指针推出屏幕边缘，朝向已放置的设备。"
 
-#: app/src/window.rs:717
+#: app/src/window.rs:813
 msgid "Ready: placed devices can move their pointer here."
 msgstr "就绪：已放置的设备可以把指针移到本机。"
 
-#: app/src/window.rs:725
+#: app/src/window.rs:821
 msgid "Connecting to the desktop…"
 msgstr "正在连接桌面…"
 
-#: app/src/window.rs:747 data/ui/window.blp:152
+#: app/src/window.rs:843 data/ui/window.blp:136
 msgid ""
 "Text and images copied here go along when the pointer moves to another "
 "device, and come back with it."
 msgstr "在本机复制的文字和图片会随指针一起移到另一台设备，回来时也会带回来。"
 
-#: app/src/window.rs:749
+#: app/src/window.rs:845
 msgid ""
 "This desktop doesn't share its clipboard with Rinflow. It needs the "
 "clipboard portal (GNOME 45 or Plasma 6.2 and newer)."
@@ -332,179 +334,175 @@ msgstr ""
 "此桌面没有向 Rinflow 提供剪贴板，需要剪贴板门户（GNOME 45 或 Plasma 6.2 及更"
 "新版本）。"
 
-#: app/src/window.rs:751
+#: app/src/window.rs:847
 msgid ""
 "Available once other devices may control this one: the clipboard comes with "
 "that permission."
 msgstr "允许其他设备控制本机后即可使用：剪贴板随这项权限一起授予。"
 
-#: app/src/window.rs:768
+#: app/src/window.rs:864
 msgid "Device"
 msgstr "设备"
 
-#: app/src/window.rs:775
+#: app/src/window.rs:871
 msgid "on the left"
 msgstr "在左侧"
 
-#: app/src/window.rs:776
+#: app/src/window.rs:872
 msgid "on the right"
 msgstr "在右侧"
 
-#: app/src/window.rs:777
+#: app/src/window.rs:873
 msgid "above"
 msgstr "在上方"
 
-#: app/src/window.rs:778
+#: app/src/window.rs:874
 msgid "below"
 msgstr "在下方"
 
-#: data/ui/window.blp:7
+#: app/src/window.rs:892
 msgid "_Quit Rinflow Agent"
 msgstr "退出 Rinflow 后台服务(_Q)"
 
-#: data/ui/window.blp:14
+#: app/src/window.rs:895
 msgid "_About Rinflow"
 msgstr "关于 Rinflow(_A)"
 
-#: data/ui/window.blp:41
+#: data/ui/window.blp:25
 msgid "Main Menu"
 msgstr "主菜单"
 
-#: data/ui/window.blp:50
+#: data/ui/window.blp:34
 msgid "Dismiss"
 msgstr "知道了"
 
-#: data/ui/window.blp:58
+#: data/ui/window.blp:42
 msgid "Devices"
 msgstr "设备"
 
-#: data/ui/window.blp:63
+#: data/ui/window.blp:47
 msgid "This Device"
 msgstr "本机"
 
-#: data/ui/window.blp:66
+#: data/ui/window.blp:50
 msgid "Controlling other devices"
 msgstr "控制其他设备"
 
-#: data/ui/window.blp:75 data/ui/window.blp:93
+#: data/ui/window.blp:59 data/ui/window.blp:77
 msgid "Ask Again"
 msgstr "重新请求"
 
-#: data/ui/window.blp:84
+#: data/ui/window.blp:68
 msgid "Being controlled by other devices"
 msgstr "被其他设备控制"
 
-#: data/ui/window.blp:103
+#: data/ui/window.blp:87
 msgid "Arrangement"
 msgstr "布局"
 
-#: data/ui/window.blp:104
+#: data/ui/window.blp:88
 msgid ""
 "Drag a device to the side of this screen it sits on. The pointer crosses "
 "where they touch."
 msgstr "把设备拖到它实际所在的那一侧。指针从两者相接的地方穿过去。"
 
-#: data/ui/window.blp:108
+#: data/ui/window.blp:92
 msgid "My Devices"
 msgstr "我的设备"
 
-#: data/ui/window.blp:113
+#: data/ui/window.blp:97
 msgid "Add a device by address"
 msgstr "通过地址添加设备"
 
-#: data/ui/window.blp:125
+#: data/ui/window.blp:109
 msgid "Nearby Devices"
 msgstr "附近的设备"
 
-#: data/ui/window.blp:126
+#: data/ui/window.blp:110
 msgid "Devices found on this network that haven't connected yet."
 msgstr "在本网络上发现、但还没有连接过的设备。"
 
-#: data/ui/window.blp:133
+#: data/ui/window.blp:117
 msgid "Settings"
 msgstr "设置"
 
-#: data/ui/window.blp:138
+#: data/ui/window.blp:122
 msgid "Sharing"
 msgstr "共享"
 
-#: data/ui/window.blp:141
+#: data/ui/window.blp:125
 msgid "Share mouse and keyboard"
 msgstr "共享鼠标和键盘"
 
-#: data/ui/window.blp:142
+#: data/ui/window.blp:126
 msgid "Off pauses crossing in both directions; devices stay connected."
 msgstr "关闭后两个方向都不再穿越；设备保持连接。"
 
-#: data/ui/window.blp:146
+#: data/ui/window.blp:130
 msgid "Only paired devices"
 msgstr "仅允许已配对的设备"
 
-#: data/ui/window.blp:147
+#: data/ui/window.blp:131
 msgid "New devices must pair with a six-digit code first."
 msgstr "新设备需要先用六位配对码配对。"
 
-#: data/ui/window.blp:151
+#: data/ui/window.blp:135
 msgid "Share the clipboard"
 msgstr "同步剪贴板"
 
-#: data/ui/window.blp:156
+#: data/ui/window.blp:140
 msgid "Start when I sign in"
 msgstr "登录时启动"
 
-#: data/ui/window.blp:161
+#: data/ui/window.blp:145
 msgid "Keyboard"
 msgstr "键盘"
 
-#: data/ui/window.blp:164
+#: data/ui/window.blp:148
 msgid "Modifier keys from a Mac"
 msgstr "来自 Mac 的修饰键"
 
-#: data/ui/window.blp:165
+#: data/ui/window.blp:149
 msgid "What ⌘ and Control play as when a Mac controls this device."
 msgstr "Mac 控制本机时，⌘ 和 Control 各自对应哪个键。"
 
-#: data/ui/window.blp:170
+#: data/ui/window.blp:154
 msgid "Appearance"
 msgstr "外观"
 
-#: data/ui/window.blp:173
+#: data/ui/window.blp:157
 msgid "Theme"
 msgstr "主题"
 
-#: data/ui/window.blp:177
+#: data/ui/window.blp:161
 msgid "Language"
 msgstr "语言"
 
-#: data/ui/window.blp:178
-msgid "Takes effect the next time the window opens."
-msgstr "下次打开窗口时生效。"
-
-#: data/ui/window.blp:183
+#: data/ui/window.blp:166
 msgid "Network"
 msgstr "网络"
 
-#: data/ui/window.blp:186
+#: data/ui/window.blp:169
 msgid "Control port (UDP)"
 msgstr "控制端口（UDP）"
 
-#: data/ui/window.blp:187
+#: data/ui/window.blp:170
 msgid "Applies after the agent restarts."
 msgstr "后台服务重启后生效。"
 
-#: data/ui/window.blp:204
+#: data/ui/window.blp:187
 msgid "About This Device"
 msgstr "关于本机"
 
-#: data/ui/window.blp:207
+#: data/ui/window.blp:190
 msgid "Name"
 msgstr "名称"
 
-#: data/ui/window.blp:213
+#: data/ui/window.blp:196
 msgid "Certificate fingerprint"
 msgstr "证书指纹"
 
-#: data/ui/window.blp:220
+#: data/ui/window.blp:203
 msgid "Agent"
 msgstr "后台服务"
 
@@ -528,37 +526,37 @@ msgstr "主题只能是跟随系统、浅色或深色"
 msgid "Language must be system, Simplified Chinese, Japanese, or English"
 msgstr "语言只能是跟随系统、简体中文、日语或英语"
 
-#: shell/src/settings.rs:119
+#: shell/src/settings.rs:118
 msgid "Ports must be between 1024 and 65535 and not the discovery port {port}"
 msgstr "端口需在 1024–65535 之间，且不能是发现端口 {port}"
 
-#: shell/src/settings.rs:124
+#: shell/src/settings.rs:122
 msgid "You can add up to {count} addresses"
 msgstr "最多添加 {count} 个地址"
 
-#: shell/src/settings.rs:131
+#: shell/src/settings.rs:129
 msgid ""
 "“{address}” isn't a valid address. Enter an IP address or a device name."
 msgstr "“{address}”不是有效的地址：请输入 IP 地址或设备名称。"
 
-#: shell/src/settings.rs:134
+#: shell/src/settings.rs:132
 msgid ""
 "Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× "
 "and 5×"
 msgstr "指针速度需在 0.25–4 倍之间，滚动速度在 0.25–5 倍之间"
 
 #. Translators: {name} is a device's name, {message} why it disconnected.
-#: shell/src/state.rs:472
+#: shell/src/state.rs:449
 msgid "{name}: {message}"
 msgstr "{name}：{message}"
 
-#: shell/src/state.rs:535
+#: shell/src/state.rs:512
 msgid ""
 "The other device stopped responding (it may be asleep or offline). It "
 "reconnects when it's back."
 msgstr "对方没有响应（可能睡眠了或断网），回来后会自动重新连接。"
 
-#: shell/src/state.rs:536
+#: shell/src/state.rs:513
 msgid ""
 "The other device refused the connection. It may have removed this device, or "
 "it only allows paired devices. To pair again, select Connect in the device "
@@ -567,7 +565,7 @@ msgstr ""
 "对方拒绝了连接：对方可能移除了本机，或只允许已配对的设备。在设备菜单里点“连"
 "接”可以重新配对。"
 
-#: shell/src/state.rs:537
+#: shell/src/state.rs:514
 msgid ""
 "The device's identity certificate changed, so the connection was refused. If "
 "it was reinstalled, remove it in the device menu and pair again."
@@ -575,19 +573,19 @@ msgstr ""
 "设备的身份证书变了，已拒绝连接。如果对方重装过，请在设备菜单里选择“忘记此设"
 "备”，然后重新配对。"
 
-#: shell/src/state.rs:539
+#: shell/src/state.rs:516
 msgid "The other device declined pairing."
 msgstr "对方拒绝了配对。"
 
-#: shell/src/state.rs:541
+#: shell/src/state.rs:518
 msgid "Pairing timed out. It wasn't confirmed within two minutes."
 msgstr "配对超时，没有在两分钟内确认。"
 
-#: shell/src/state.rs:542
+#: shell/src/state.rs:519
 msgid "An unpaired device was disconnected (“Only paired devices” is on)."
 msgstr "未配对的设备已断开（已开启“仅允许已配对的设备”）。"
 
-#: shell/src/state.rs:543
+#: shell/src/state.rs:520
 msgid "Unpaired."
 msgstr "已取消配对。"
 

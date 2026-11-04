@@ -1,22 +1,6 @@
 using Gtk 4.0;
 using Adw 1;
 
-menu main_menu {
-  section {
-    item {
-      label: _("_Quit Rinflow Agent");
-      action: "app.quit-agent";
-    }
-  }
-
-  section {
-    item {
-      label: _("_About Rinflow");
-      action: "app.about";
-    }
-  }
-}
-
 template $RinflowWindow : Adw.ApplicationWindow {
   title: "Rinflow";
   default-width: 780;
@@ -33,10 +17,10 @@ template $RinflowWindow : Adw.ApplicationWindow {
         policy: wide;
       }
 
+      // Its menu is built in app/src/window.rs, in the window's language.
       [end]
-      MenuButton {
+      MenuButton menu_button {
         icon-name: "open-menu-symbolic";
-        menu-model: main_menu;
         primary: true;
         tooltip-text: _("Main Menu");
       }
@@ -175,7 +159,6 @@ template $RinflowWindow : Adw.ApplicationWindow {
 
                 Adw.ComboRow language_row {
                   title: _("Language");
-                  subtitle: _("Takes effect the next time the window opens.");
                 }
               }
 

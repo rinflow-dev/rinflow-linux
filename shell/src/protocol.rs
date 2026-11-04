@@ -3,13 +3,16 @@
 //! `hello`, then pushes the whole [`Snapshot`](crate::state::Snapshot) as
 //! `state` on every change; the client sends requests.
 
+use crate::i18n::Text;
 use crate::state::Snapshot;
 use rinflow_core::layout::{Offset, Side};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 /// Bumped whenever a request or a snapshot field changes meaning.
-pub const PROTOCOL_VERSION: u32 = 1;
+/// 2: text for the user (`last_error`, `input.*.detail`, `error`) is a
+/// [`Text`], translated by the window, rather than a translated string.
+pub const PROTOCOL_VERSION: u32 = 2;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -76,7 +79,7 @@ pub enum Message<'a> {
     },
     State(&'a Snapshot),
     Error {
-        message: String,
+        message: Text,
     },
     /// Where a dragged peer would land (`null` when nowhere).
     PlacementPreview {

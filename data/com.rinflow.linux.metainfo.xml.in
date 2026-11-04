@@ -32,8 +32,8 @@
     <control>touch</control>
   </supports>
   <branding>
-    <color type="primary" scheme_preference="light">#99c1f1</color>
-    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+    <color type="primary" scheme_preference="light">#deddda</color>
+    <color type="primary" scheme_preference="dark">#181717</color>
   </branding>
   <content_rating type="oars-1.1"/>
   <releases>

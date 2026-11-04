@@ -25,7 +25,7 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-i18n e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
+.PHONY: all build release test check-po e2e e2e-i18n e2e-window-i18n e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent clean install uninstall locale pot check
 
 all: build
 
@@ -61,10 +61,16 @@ e2e-clipboard: build
 e2e-systemd: build
 	python3 -I tests/e2e_systemd.py ./target/debug/rinflow-agent ./target/debug/fakedesk
 
-# The agent's own text in Japanese, Chinese and English: the system language
-# as libc picks it, the language setting over it, changing it while running.
-e2e-i18n: build locale
+# The agent's text goes out untranslated (the window translates it), whatever
+# the agent's environment; the language setting is kept and checked.
+e2e-i18n: build
 	python3 -I tests/e2e_i18n.py ./target/debug/rinflow-agent
+
+# The window changes language while it runs: its text, its lists and the
+# agent's messages, read through AT-SPI. Needs xvfb-run, dbus, at-spi2-core,
+# python3-gi, gir1.2-atspi-2.0 (and imagemagick for SHOTS=<directory>).
+e2e-window-i18n: build locale
+	xvfb-run -a dbus-run-session -- python3 tests/e2e_window_i18n.py ./target/debug/rinflow $(SHOTS)
 
 # The crossing on two real GNOME desktops: Mutter headless + the GNOME portal
 # backend on each side; the permission dialogs are pressed through AT-SPI.
@@ -111,15 +117,15 @@ run-agent: build
 
 # Refreshes po/rinflow.pot from the files in po/POTFILES and merges it into
 # each language. Rust and Blueprint are read as C (xgettext has no Rust
-# before gettext 0.24): mark strings with gettext("…") in the window,
-# tr("…"), trf("…", …), gettext_noop("…") or BackendView::translated(_, _,
-# "…") in the agent, _("…") in Blueprint; and put a "// Translators:"
+# before gettext 0.24): mark strings with tr("…") or trf("…", …) where they
+# are shown, msg("…") where they are sent untranslated (the agent), _("…")
+# in Blueprint; and put a "// Translators:"
 # comment right above anything that needs explaining. Entries the sources
 # no longer have are dropped (msgattrib --no-obsolete).
 pot:
 	xgettext --from-code=UTF-8 --add-comments=Translators --package-name=rinflow \
 		--package-version=$(VERSION) \
-		--language=C --keyword=_ --keyword=C_:1c,2 --keyword=gettext --keyword=gettext_noop --keyword=tr --keyword=trf --keyword=translated:3 \
+		--language=C --keyword=_ --keyword=C_:1c,2 --keyword=tr --keyword=trf --keyword=msg \
 		-o po/rinflow.pot $(filter %.rs %.blp,$(POTFILES))
 	xgettext --from-code=UTF-8 --add-comments=Translators --join-existing \
 		-o po/rinflow.pot $(filter %.in,$(POTFILES))

@@ -4,7 +4,7 @@
 //! with a growing pause so a desktop without them is not hammered.
 
 use rinflow_core::LcInputEvent;
-use rinflow_shell::i18n::gettext_noop;
+use rinflow_shell::i18n::{Text, msg};
 use rinflow_shell::state::{BackendState, BackendView, SharedState};
 use rinflow_input::{
     CaptureCommand, CaptureEvent, ClipboardCommand, ClipboardEvent, ClipboardLink, EisSource,
@@ -238,30 +238,20 @@ impl Backends {
         match event {
             CaptureEvent::Ready => {
                 self.capture_retry.succeeded();
-                self.state.set_capture(BackendView {
-                    state: BackendState::Ready,
-                    backend: "portal".into(),
-                    detail: String::new(),
-                    message: None,
-                });
+                self.state.set_capture(BackendView::new(BackendState::Ready, "portal", Text::default()));
             }
-            CaptureEvent::Prompting => self.state.set_capture(BackendView::translated(BackendState::Prompting, "portal", "The desktop is asking whether Rinflow may capture input")),
+            CaptureEvent::Prompting => self.state.set_capture(BackendView::new(BackendState::Prompting, "portal", msg("The desktop is asking whether Rinflow may capture input"))),
             CaptureEvent::Denied(detail) => {
                 log::warn!("capture denied: {detail}");
                 self.stop_capture();
                 self.capture_retry.due = None;
-                self.state.set_capture(BackendView::translated(BackendState::Denied, "portal", "Permission to capture input was not given. This device can't control others until it is requested again and allowed."));
+                self.state.set_capture(BackendView::new(BackendState::Denied, "portal", msg("Permission to capture input was not given. This device can't control others until it is requested again and allowed.")));
             }
             CaptureEvent::Lost(detail) => {
                 log::warn!("capture lost: {detail}");
                 self.stop_capture();
                 self.capture_retry.later();
-                self.state.set_capture(BackendView {
-                    state: BackendState::Waiting,
-                    backend: "portal".into(),
-                    detail: detail.clone(),
-                    message: None,
-                });
+                self.state.set_capture(BackendView::new(BackendState::Waiting, "portal", detail.as_str()));
             }
             _ => {}
         }
@@ -272,38 +262,28 @@ impl Backends {
         match event {
             EmulationEvent::Ready => {
                 self.emulation_retry.succeeded();
-                self.state.set_emulation(BackendView {
-                    state: BackendState::Ready,
-                    backend,
-                    detail: String::new(),
-                    message: None,
-                });
+                self.state.set_emulation(BackendView::new(BackendState::Ready, &backend, Text::default()));
             }
-            EmulationEvent::Prompting => self.state.set_emulation(BackendView::translated(
+            EmulationEvent::Prompting => self.state.set_emulation(BackendView::new(
                 BackendState::Prompting,
                 &backend,
-                "The desktop is asking whether Rinflow may control this device",
+                msg("The desktop is asking whether Rinflow may control this device"),
             )),
             EmulationEvent::Denied(detail) => {
                 log::warn!("emulation denied: {detail}");
                 self.stop_emulation();
                 self.emulation_retry.due = None;
-                self.state.set_emulation(BackendView::translated(
+                self.state.set_emulation(BackendView::new(
                     BackendState::Denied,
                     &backend,
-                    "Permission to control this device was not given. Other devices can't control it until it is requested again and allowed.",
+                    msg("Permission to control this device was not given. Other devices can't control it until it is requested again and allowed."),
                 ));
             }
             EmulationEvent::Lost(detail) => {
                 log::warn!("emulation lost: {detail}");
                 self.stop_emulation();
                 self.emulation_retry.later();
-                self.state.set_emulation(BackendView {
-                    state: BackendState::Waiting,
-                    backend,
-                    detail: detail.clone(),
-                    message: None,
-                });
+                self.state.set_emulation(BackendView::new(BackendState::Waiting, &backend, detail.as_str()));
             }
         }
     }
@@ -337,7 +317,7 @@ impl Backends {
             rinflow_input::portal_capture::run(&directory, receiver, events).await;
         });
         self.capture = Some(Capture { commands, task });
-        self.state.set_capture(BackendView::translated(BackendState::Waiting, "portal", "Connecting to the desktop's input capture portal…"));
+        self.state.set_capture(BackendView::new(BackendState::Waiting, "portal", msg("Connecting to the desktop's input capture portal…")));
     }
 
     fn stop_capture(&mut self) {
@@ -368,7 +348,7 @@ impl Backends {
             rinflow_input::ei_emulation::run(source, &directory, receiver, events, shutdown_rx, last_played, link).await;
         });
         self.emulation = Some(Emulation { input, shutdown: Some(shutdown), task, clipboard });
-        self.state.set_emulation(BackendView::translated(BackendState::Waiting, &self.emulation_backend_name(), "Connecting input playback…"));
+        self.state.set_emulation(BackendView::new(BackendState::Waiting, &self.emulation_backend_name(), msg("Connecting input playback…")));
     }
 
     fn stop_emulation(&mut self) {
@@ -393,17 +373,17 @@ impl Backends {
                 self.state.set_emulation(waiting());
             }
             Desktop::Gamescope => {
-                self.state.set_capture(BackendView::translated(BackendState::Unavailable, "gamescope", "In Gaming Mode this device can be controlled by others, but can't control them."));
+                self.state.set_capture(BackendView::new(BackendState::Unavailable, "gamescope", msg("In Gaming Mode this device can be controlled by others, but can't control them.")));
                 self.state.set_emulation(waiting());
             }
             Desktop::X11 => {
-                let message = gettext_noop("X11 sessions aren't supported yet; use a Wayland session.");
-                self.state.set_capture(unavailable("x11", message));
+                let message = msg("X11 sessions aren't supported yet; use a Wayland session.");
+                self.state.set_capture(unavailable("x11", message.clone()));
                 self.state.set_emulation(unavailable("x11", message));
             }
             Desktop::None => {
-                let message = gettext_noop("No graphical session was found.");
-                self.state.set_capture(unavailable("", message));
+                let message = msg("No graphical session was found.");
+                self.state.set_capture(unavailable("", message.clone()));
                 self.state.set_emulation(unavailable("", message));
             }
         }
@@ -411,14 +391,9 @@ impl Backends {
 }
 
 fn waiting() -> BackendView {
-    BackendView {
-        state: BackendState::Waiting,
-        backend: String::new(),
-        detail: String::new(),
-        message: None,
-    }
+    BackendView::default()
 }
 
-fn unavailable(backend: &str, message: &'static str) -> BackendView {
-    BackendView::translated(BackendState::Unavailable, backend, message)
+fn unavailable(backend: &str, message: Text) -> BackendView {
+    BackendView::new(BackendState::Unavailable, backend, message)
 }

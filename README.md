@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo/rinflow-dark.svg">
+  <img src="docs/logo/rinflow-light.svg" alt="Rinflow" width="64">
+</picture>
+
 # Rinflow for Linux (`rinflow-linux`)
 
 The Linux client of Rinflow: GNOME and KDE on Wayland today, Steam Deck
@@ -45,18 +50,19 @@ input/                     rinflow-input: the backends, no agent logic
   src/token.rs             the portals' restore tokens (one use each)
 app/                       rinflow
   build.rs                 blueprint-compiler → GtkBuilder XML → GResource
-  src/main.rs              gettext, theme, resources, actions
+  src/main.rs              locale and translations, theme, resources, actions
   src/agent.rs             socket client: connects, starts the agent, reads snapshots, sends requests
   src/window.rs            the window (composite template from data/ui/window.blp)
   src/canvas.rs            the arrangement canvas: screens to scale, drag to place, snapping preview
 data/                      desktop entry and AppStream metainfo (*.in: translated by msgfmt into target/data), icons, systemd user unit, style.css, ui/*.blp
 po/                        translations: LINGUAS (ja, zh_CN), POTFILES, rinflow.pot, <language>.po
-shell/src/i18n.rs          the agent's side of the translations: the same catalogs, read in-process so the language can change while it runs
+shell/src/i18n.rs          translations: the catalogs read in-process (the window's language changes at once), `Text` for the agent's untranslated messages
 tests/e2e_two_agents.py    end-to-end test through the real core, two agents on one host
 tests/e2e_crossing.py      the crossing: barrier hit → entry on the peer → motion, keys, buttons, scroll → return → release
 tests/e2e_clipboard.py     the clipboard following the pointer both ways, the setting, password managers' secrets kept home
 tests/e2e_systemd.py       an agent started before the desktop (the user service) finds it through systemd, and lets go of it
-tests/e2e_i18n.py          the agent's text in Japanese, Chinese and English: system language, the setting, a change while running
+tests/e2e_i18n.py          the agent's text goes out untranslated whatever its environment; the language setting is kept and checked
+tests/e2e_window_i18n.py   the window changes language while it runs, read through AT-SPI (make e2e-window-i18n)
 tests/check_po.py          every language complete, placeholders intact (make check-po)
 tests/e2e_gnome_clipboard.py  the clipboard on two real Mutter desktops: GTK copies on one, GTK pastes on the other (clipapp.py)
 shell/                     rinflow-shell, shared by agent and app: state snapshot, IPC protocol, settings, trust, identity, arrangement
@@ -100,7 +106,8 @@ make e2e-controlled  # a real desktop (Mutter or KWin, RINFLOW_TEST_DESKTOP) as 
 # The e2e-gnome family on a desktop machine also needs the `mutter` binary (Debian/Ubuntu: apt install mutter).
 # The tests use their own ports and directories, so they run beside an installed Rinflow; only `make e2e`
 # checks the default port 42421 and needs it free.
-make e2e-i18n     # the agent's own text in each language (no display needed)
+make e2e-i18n     # the agent's text goes out untranslated; the language setting (no display needed)
+make e2e-window-i18n  # the window switching language live, under Xvfb (AT-SPI)
 make check      # translations complete (check-po) + desktop-file-validate + appstreamcli validate on the translated files
 sudo make install && systemctl --user enable --now rinflow-agent
 ```
@@ -121,13 +128,20 @@ make locale && cargo build --release && cargo deb -p rinflow --no-build`.
 
 ## Translations
 
-GNU gettext, one domain (`rinflow`) for the window and the agent. English is
-the source; Simplified Chinese (`zh_CN`) and Japanese (`ja`) are complete.
-The `Language` setting chooses one (`system`, `zh-CN`, `ja-JP`, `en-US`);
-otherwise the system's language list applies as libc reads it (`LANGUAGE`,
-then `LC_ALL`, `LC_MESSAGES`, `LANG`). The window takes the setting at start
-(through `LANGUAGE`, so GTK's own strings follow); the agent changes at once
-and translates what it already shows.
+GNU gettext, one domain (`rinflow`). English is the source; Simplified
+Chinese (`zh_CN`) and Japanese (`ja`) are complete. The `Language` setting
+chooses one (`system`, `zh-CN`, `ja-JP`, `en-US`); otherwise the system's
+language list applies as libc reads it (`LANGUAGE`, then the messages'
+locale libc chose from `LC_ALL`, `LC_MESSAGES`, `LANG`; `zh`, `zh_SG` and
+`zh_Hans` use the `zh_CN` catalog).
+
+Only the window translates. The agent sends its text untranslated, as a
+message id with its values (`Text` in shell/src/i18n.rs; protocol 2), and the
+window translates it when it shows it. The window reads the catalogs itself
+rather than through libc, so a change of the setting applies at once to
+everything on screen, the agent's messages included, without a restart. Only
+GTK's and libadwaita's own few strings (the About dialog's tabs, an entry's
+menu) come from libc and follow from the next start.
 
 ```sh
 make pot        # after changing strings: refresh po/rinflow.pot, merge into each po/<language>.po
@@ -136,9 +150,9 @@ make locale     # target/locale/<language>/LC_MESSAGES/rinflow.mo, target/data/*
 LANGUAGE=ja ./target/debug/rinflow   # try a language without changing the setting
 ```
 
-Marking strings: `gettext("…")` in the window, `tr("…")`, `trf("…", &[("name",
-&value)])`, `gettext_noop("…")` or `BackendView::translated(_, _, "…")` in the
-agent, `_("…")` in Blueprint. Whole sentences with `{name}` placeholders,
+Marking strings: `tr("…")` or `trf("…", &[("name", &value)])` where text is
+shown (the window), `msg("…")` with `.arg("name", value)` where it is sent
+untranslated (the agent, the settings' errors), `_("…")` in Blueprint. Whole sentences with `{name}` placeholders,
 never pieces joined in code; a `// Translators:` comment just above says
 what a placeholder holds. A new language: add it to `po/LINGUAS`, `msginit
 -i po/rinflow.pot -l <language> -o po/<language>.po`, translate, add it to

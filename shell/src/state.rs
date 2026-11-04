@@ -2,7 +2,7 @@
 //! window renders as it is. The agent pushes the whole snapshot on every
 //! change, so the window never has to replay individual core events.
 
-use crate::i18n::{tr, trf};
+use crate::i18n::{Text, msg};
 use crate::settings::Settings;
 use rinflow_core::layout::{Display, Offset, Side};
 use serde::{Deserialize, Serialize};
@@ -108,30 +108,20 @@ pub struct BackendView {
     pub state: BackendState,
     /// `portal`, `gamescope`, `x11`, or empty while nothing is chosen.
     pub backend: String,
-    /// One line for the user when it is not `ready`.
-    pub detail: String,
-    /// The English message `detail` was translated from, to translate it
-    /// again when the language changes (`None`: it came from elsewhere,
-    /// a portal's error say).
-    #[serde(skip)]
-    pub message: Option<&'static str>,
+    /// One line for the user when it is not `ready` (empty: nothing to say).
+    #[serde(default)]
+    pub detail: Text,
 }
 
 impl BackendView {
-    /// A state with a message of Rinflow's own, in the user's language.
-    pub fn translated(state: BackendState, backend: &str, message: &'static str) -> Self {
-        Self { state, backend: backend.to_owned(), detail: tr(message), message: Some(message) }
+    pub fn new(state: BackendState, backend: &str, detail: impl Into<Text>) -> Self {
+        Self { state, backend: backend.to_owned(), detail: detail.into() }
     }
 }
 
 impl Default for BackendView {
     fn default() -> Self {
-        Self {
-            state: BackendState::Waiting,
-            backend: String::new(),
-            detail: String::new(),
-            message: None,
-        }
+        Self::new(BackendState::Waiting, "", Text::default())
     }
 }
 
@@ -156,7 +146,7 @@ pub struct Snapshot {
     pub sessions: Vec<Session>,
     pub layout: LayoutView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_error: Option<String>,
+    pub last_error: Option<Text>,
     /// Preferences (see `settings.rs`).
     pub settings: Settings,
     /// The agent starts when the user signs in.
@@ -266,19 +256,6 @@ impl SharedState {
             .send_if_modified(|snapshot| replace(&mut snapshot.input.emulation, view));
     }
 
-    /// Translates the input states again, after the language changed.
-    pub fn retranslate(&self) {
-        self.0.send_if_modified(|snapshot| {
-            let mut changed = false;
-            for view in [&mut snapshot.input.capture, &mut snapshot.input.emulation] {
-                if let Some(message) = view.message {
-                    changed |= replace(&mut view.detail, tr(message));
-                }
-            }
-            changed
-        });
-    }
-
     pub fn set_clipboard_available(&self, available: bool) {
         self.0
             .send_if_modified(|snapshot| replace(&mut snapshot.input.clipboard, available));
@@ -307,7 +284,7 @@ impl SharedState {
             .send_if_modified(|snapshot| replace(&mut snapshot.layout, layout));
     }
 
-    pub fn set_error(&self, message: impl Into<String>) {
+    pub fn set_error(&self, message: impl Into<Text>) {
         let message = message.into();
         self.0
             .send_modify(|snapshot| snapshot.last_error = Some(message));
@@ -469,12 +446,12 @@ impl SharedState {
                 let reason = event["reason"].as_str().unwrap_or("disconnected");
                 if let Some(message) = disconnect_message(reason) {
                     // Translators: {name} is a device's name, {message} why it disconnected.
-                    snapshot.last_error = Some(trf("{name}: {message}", &[("name", &name), ("message", &message)]));
+                    snapshot.last_error = Some(msg("{name}: {message}").arg("name", name).arg("message", message));
                 }
                 true
             }
             "error" => {
-                snapshot.last_error = event["message"].as_str().map(str::to_owned);
+                snapshot.last_error = event["message"].as_str().map(Text::from);
                 true
             }
             "manual_addresses" => {
@@ -523,7 +500,7 @@ fn replace<T: PartialEq>(slot: &mut T, value: T) -> bool {
 
 /// What to tell the user about a session that ended, if anything: ending it
 /// here or on the peer, or declining a pairing here, is not an error.
-fn disconnect_message(reason: &str) -> Option<String> {
+fn disconnect_message(reason: &str) -> Option<Text> {
     Some(match reason {
         "local request"
         | "peer closed the connection"
@@ -532,16 +509,16 @@ fn disconnect_message(reason: &str) -> Option<String> {
         | "pairing declined" => return None,
         // The peer vanished without closing (slept, lost the network); the
         // core reconnects once it is back.
-        "heartbeat timeout" => tr("The other device stopped responding (it may be asleep or offline). It reconnects when it's back."),
-        "refused by the other device" => tr("The other device refused the connection. It may have removed this device, or it only allows paired devices. To pair again, select Connect in the device menu."),
-        "the device's identity changed" => tr("The device's identity certificate changed, so the connection was refused. If it was reinstalled, remove it in the device menu and pair again."),
+        "heartbeat timeout" => msg("The other device stopped responding (it may be asleep or offline). It reconnects when it's back."),
+        "refused by the other device" => msg("The other device refused the connection. It may have removed this device, or it only allows paired devices. To pair again, select Connect in the device menu."),
+        "the device's identity changed" => msg("The device's identity certificate changed, so the connection was refused. If it was reinstalled, remove it in the device menu and pair again."),
         "pairing declined on the other device" => {
-            tr("The other device declined pairing.")
+            msg("The other device declined pairing.")
         }
-        "pairing timed out" => tr("Pairing timed out. It wasn't confirmed within two minutes."),
-        "pairing required" => tr("An unpaired device was disconnected (“Only paired devices” is on)."),
-        "unpaired" => tr("Unpaired."),
-        other => other.to_owned(),
+        "pairing timed out" => msg("Pairing timed out. It wasn't confirmed within two minutes."),
+        "pairing required" => msg("An unpaired device was disconnected (“Only paired devices” is on)."),
+        "unpaired" => msg("Unpaired."),
+        other => Text::from(other),
     })
 }
 
@@ -586,6 +563,19 @@ mod tests {
         assert!(snapshot.sessions.is_empty());
         assert_eq!(snapshot.driving, None);
         assert_eq!(snapshot.last_error, None);
+    }
+
+    #[test]
+    fn errors_go_to_the_window_untranslated() {
+        let state = state();
+        apply(&state, serde_json::json!({"event": "connecting", "peer_id": "mac"}));
+        apply(&state, serde_json::json!({"event": "disconnected", "peer_id": "mac", "reason": "unpaired"}));
+        assert_eq!(
+            serde_json::to_value(state.snapshot().last_error).unwrap(),
+            serde_json::json!({"id": "{name}: {message}", "args": {"name": "mac", "message": {"id": "Unpaired."}}})
+        );
+        apply(&state, serde_json::json!({"event": "error", "message": "control port failed: in use"}));
+        assert_eq!(state.snapshot().last_error, Some(Text::from("control port failed: in use")));
     }
 
     #[test]

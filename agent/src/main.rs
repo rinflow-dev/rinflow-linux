@@ -17,7 +17,7 @@ use backends::Backends;
 use driver::Driver;
 use rinflow_core::{Core, CoreConfig, LcInputEvent};
 use rinflow_shell::arrangement::Arrangement;
-use rinflow_shell::i18n::{self, trf};
+use rinflow_shell::i18n::{Text, msg};
 use rinflow_shell::identity;
 use rinflow_shell::settings::SettingsStore;
 use rinflow_shell::state::SharedState;
@@ -81,11 +81,8 @@ async fn run() -> i32 {
         }
     };
 
-    i18n::init(i18n::locale_directory(), i18n::system_languages(|name| std::env::var(name).ok()));
-
     let settings = Arc::new(SettingsStore::load(&data));
     let preferences = settings.get();
-    i18n::set_language(&preferences.language);
     let control_port = preferences
         .port
         .unwrap_or_else(|| CoreConfig::default().control_port);
@@ -191,7 +188,7 @@ async fn run() -> i32 {
             json = core_events.recv(), if core_running => {
                 let Some(json) = json else {
                     core_running = false;
-                    let detail = state.snapshot().last_error.unwrap_or_default();
+                    let detail = state.snapshot().last_error.map(|error| error.to_string()).unwrap_or_default();
                     log::error!("the core stopped: {detail}");
                     state.set_error(core_stopped_message(control_port, &detail));
                     continue;
@@ -294,15 +291,14 @@ async fn run() -> i32 {
 }
 
 /// What the window says when the core stopped (it only does at start-up).
-fn core_stopped_message(port: u16, detail: &str) -> String {
+fn core_stopped_message(port: u16, detail: &str) -> Text {
     if detail.starts_with("control port failed") || detail.starts_with("discovery socket failed") {
         // Translators: {detail} is the system's error message, in English.
-        trf(
-            "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Choose another port in Settings, then restart the agent. ({detail})",
-            &[("port", &port), ("detail", &detail)],
-        )
+        msg("Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Choose another port in Settings, then restart the agent. ({detail})")
+            .arg("port", port.to_string())
+            .arg("detail", detail)
     } else {
-        trf("Rinflow's core didn't start: {detail}", &[("detail", &detail)])
+        msg("Rinflow's core didn't start: {detail}").arg("detail", detail)
     }
 }
 

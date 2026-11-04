@@ -284,7 +284,7 @@ impl ArrangementCanvas {
             self.draw_display(snapshot, &view, display, 0.0, 0.0, &colors.accent, &colors.accent_fg, None);
         }
         if let Some((l, t, r, b)) = Some(bounds(&layout.displays)).filter(|b| b.0 < b.2) {
-            let name = gettextrs::gettext("This device");
+            let name = rinflow_shell::i18n::tr("This device");
             self.draw_label(snapshot, &view, (l + r) / 2.0, (t + b) / 2.0, &name, &colors.accent_fg, true);
         }
 

@@ -4,6 +4,7 @@
 
 use crate::services::{AgentCommand, Services};
 use rinflow_core::layout::Offset;
+use rinflow_shell::i18n::Text;
 use rinflow_shell::protocol::{Message, PROTOCOL_VERSION, Request};
 use std::io;
 use std::path::Path;
@@ -101,7 +102,7 @@ async fn serve_client(stream: UnixStream, services: Rc<Services>) {
 }
 
 /// Acts on one request; some are answered with a message of their own.
-fn handle_request(line: &str, services: &Services) -> Result<Option<Message<'static>>, String> {
+fn handle_request(line: &str, services: &Services) -> Result<Option<Message<'static>>, Text> {
     let request = Request::parse(line)?;
     let done = match request {
         Request::PreviewPlacement { peer_id, x, y } => {
@@ -109,16 +110,16 @@ fn handle_request(line: &str, services: &Services) -> Result<Option<Message<'sta
             return Ok(Some(Message::PlacementPreview { peer_id, offset }));
         }
         Request::Hello { protocol } if protocol == PROTOCOL_VERSION => Ok(()),
-        Request::Hello { protocol } => Err(format!(
+        Request::Hello { protocol } => Err(Text::from(format!(
             "the window speaks protocol {protocol}, the agent speaks {PROTOCOL_VERSION}"
-        )),
-        Request::Connect { peer_id } => services.core()?.connect(&peer_id),
-        Request::Disconnect { peer_id } => services.core()?.disconnect_peer(&peer_id),
+        ))),
+        Request::Connect { peer_id } => Ok(services.core()?.connect(&peer_id)?),
+        Request::Disconnect { peer_id } => Ok(services.core()?.disconnect_peer(&peer_id)?),
         Request::SetPlacement { peer_id, x, y } => {
-            services.core()?.set_placement(&peer_id, Some(Offset { x, y }))
+            Ok(services.core()?.set_placement(&peer_id, Some(Offset { x, y }))?)
         }
-        Request::RemovePlacement { peer_id } => services.core()?.set_placement(&peer_id, None),
-        Request::PlaceBeside { peer_id, side } => services.core()?.place_beside(&peer_id, side),
+        Request::RemovePlacement { peer_id } => Ok(services.core()?.set_placement(&peer_id, None)?),
+        Request::PlaceBeside { peer_id, side } => Ok(services.core()?.place_beside(&peer_id, side)?),
         Request::UpdateSettings { values } => services.update_settings(values),
         Request::ForgetDevice { peer_id } => services.forget_device(&peer_id),
         Request::AcceptPairing { peer_id } => services.accept_pairing(&peer_id),

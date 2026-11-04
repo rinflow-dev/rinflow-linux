@@ -1,7 +1,7 @@
 //! Agent preferences, saved to `settings.json`. Starting at login is not
 //! kept here: the platform's autostart mechanism is the truth.
 
-use crate::i18n::{LANGUAGES, tr, trf};
+use crate::i18n::{LANGUAGES, Text, msg};
 use crate::store;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -34,7 +34,7 @@ pub struct Settings {
     pub manual_addresses: Vec<String>,
     /// How this device's mouse feels on each peer it drives, by device ID.
     pub peer_input: BTreeMap<String, PeerInput>,
-    /// The language of the agent's own text: `system`, `zh-CN`, `ja-JP` or `en-US`.
+    /// The window's language: `system`, `zh-CN`, `ja-JP` or `en-US`.
     pub language: String,
     /// Share the clipboard with peers as control changes hands (text, HTML,
     /// images). Off by default, as on Windows.
@@ -92,46 +92,44 @@ impl Default for Settings {
 impl Settings {
     /// Applies the given keys to a copy; unknown keys and invalid values are
     /// refused with a message for the user.
-    pub fn merged(&self, values: &Map<String, Value>) -> Result<Self, String> {
+    pub fn merged(&self, values: &Map<String, Value>) -> Result<Self, Text> {
         let mut object = match serde_json::to_value(self) {
             Ok(Value::Object(object)) => object,
-            _ => return Err(tr("Settings couldn't be read")),
+            _ => return Err(msg("Settings couldn't be read")),
         };
         for (key, value) in values {
             if !object.contains_key(key) {
-                return Err(trf("Unknown setting: {key}", &[("key", key)]));
+                return Err(msg("Unknown setting: {key}").arg("key", key.as_str()));
             }
             object.insert(key.clone(), value.clone());
         }
         let merged: Self = serde_json::from_value(Value::Object(object)).map_err(|error| {
-            trf("Invalid setting value: {error}", &[("error", &error)])
+            msg("Invalid setting value: {error}").arg("error", error.to_string())
         })?;
         if !matches!(merged.theme.as_str(), "system" | "light" | "dark") {
-            return Err(tr("Theme must be system, light, or dark"));
+            return Err(msg("Theme must be system, light, or dark"));
         }
         if !LANGUAGES.contains(&merged.language.as_str()) {
-            return Err(tr("Language must be system, Simplified Chinese, Japanese, or English"));
+            return Err(msg("Language must be system, Simplified Chinese, Japanese, or English"));
         }
         if let Some(port) = merged.port
             && (port < 1024 || port == DISCOVERY_PORT)
         {
-            return Err(trf(
-                "Ports must be between 1024 and 65535 and not the discovery port {port}",
-                &[("port", &DISCOVERY_PORT)],
-            ));
+            return Err(msg("Ports must be between 1024 and 65535 and not the discovery port {port}")
+                .arg("port", DISCOVERY_PORT.to_string()));
         }
         if merged.manual_addresses.len() > MAX_MANUAL_ADDRESSES {
-            return Err(trf("You can add up to {count} addresses", &[("count", &MAX_MANUAL_ADDRESSES)]));
+            return Err(msg("You can add up to {count} addresses").arg("count", MAX_MANUAL_ADDRESSES.to_string()));
         }
         if let Some(bad) = merged
             .manual_addresses
             .iter()
             .find(|address| rinflow_core::parse_address(address, DISCOVERY_PORT).is_err())
         {
-            return Err(trf("“{address}” isn't a valid address. Enter an IP address or a device name.", &[("address", bad)]));
+            return Err(msg("“{address}” isn't a valid address. Enter an IP address or a device name.").arg("address", bad.as_str()));
         }
         if merged.peer_input.values().any(|input| !input.is_valid()) {
-            return Err(tr("Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× and 5×"));
+            return Err(msg("Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× and 5×"));
         }
         Ok(merged)
     }

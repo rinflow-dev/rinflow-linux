@@ -10,38 +10,37 @@ use gtk::{gio, glib};
 use std::path::PathBuf;
 
 pub const APP_ID: &str = "com.rinflow.linux";
-use rinflow_shell::i18n::{self, TEXT_DOMAIN};
+use rinflow_shell::i18n::{self, tr};
 
 fn main() -> glib::ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
     // The language and theme the user chose live in the agent's settings
-    // file; read them before GTK and gettext start, so the window opens in
-    // them. (The agent applies every other setting.)
+    // file; read them before GTK starts, so the window opens in them. (The
+    // agent applies every other setting.)
     let settings = rinflow_shell::settings::SettingsStore::load(&data_directory()).get();
-    // A chosen language goes in LANGUAGE, which only picks the translations
-    // (GTK's and libadwaita's too), so the locale's formats and a locale
-    // that isn't generated don't matter. gettext ignores LANGUAGE in the C
-    // locale, so then the messages' locale becomes C.UTF-8. Following the
-    // system is left to libc, as in the agent (shell/src/i18n.rs).
-    let chosen = i18n::gettext_language(&settings.language);
-    if let Some(language) = chosen {
-        // SAFETY: before any other thread exists.
-        unsafe { std::env::set_var("LANGUAGE", language) };
-    }
-    // SAFETY: before any other thread exists; setlocale's answer is read
+    // The user's own LANGUAGE, before a chosen language replaces it below.
+    let language_list = std::env::var("LANGUAGE").ok().filter(|list| !list.is_empty());
+    agent::keep_language_list(language_list.clone());
+    // SAFETY: before any other thread exists; setlocale's answer is copied
     // before the next call.
-    unsafe {
-        gettextrs::setlocale(gettextrs::LocaleCategory::LcAll, "");
-        let messages = libc::setlocale(libc::LC_MESSAGES, std::ptr::null());
-        let messages = (!messages.is_null()).then(|| std::ffi::CStr::from_ptr(messages).to_bytes());
-        if chosen.is_some() && matches!(messages, None | Some(b"C") | Some(b"POSIX")) {
-            gettextrs::setlocale(gettextrs::LocaleCategory::LcMessages, "C.UTF-8");
-        }
-    }
-    let _ = gettextrs::bindtextdomain(TEXT_DOMAIN, i18n::locale_directory());
-    let _ = gettextrs::bind_textdomain_codeset(TEXT_DOMAIN, "UTF-8");
-    let _ = gettextrs::textdomain(TEXT_DOMAIN);
+    let messages_locale = unsafe {
+        libc::setlocale(libc::LC_ALL, c"".as_ptr());
+        let locale = libc::setlocale(libc::LC_MESSAGES, std::ptr::null());
+        (!locale.is_null()).then(|| std::ffi::CStr::from_ptr(locale).to_string_lossy().into_owned())
+    };
+    // Rinflow's own text: from the catalogs, read in-process, so the
+    // language can change while the window runs (shell/src/i18n.rs). The
+    // window's template is built untranslated (no gettext domain is bound)
+    // and translated by the window itself.
+    i18n::init(
+        i18n::locale_directory(),
+        i18n::system_languages(messages_locale.as_deref(), language_list.as_deref()),
+    );
+    i18n::set_language(&settings.language);
+    gtk_strings_language(&settings.language, messages_locale.as_deref());
+    // GTK would call setlocale(LC_ALL, "") again, undoing the above.
+    gtk::disable_setlocale();
 
     gio::resources_register_include!("rinflow.gresource").expect("the window's resources");
 
@@ -79,6 +78,28 @@ fn main() -> glib::ExitCode {
     app.run()
 }
 
+/// GTK's and libadwaita's own strings (the About dialog's, an entry's menu)
+/// come from libc's gettext, which takes the language from the environment:
+/// a chosen language goes in `LANGUAGE` here, before any thread exists, so
+/// they follow it from the next start. It only picks the translations, so
+/// the locale's formats and a locale that isn't installed don't matter;
+/// gettext ignores it in the C locale, so then the messages' locale becomes
+/// C.UTF-8.
+fn gtk_strings_language(setting: &str, messages_locale: Option<&str>) {
+    let Some(language) = i18n::gettext_language(setting) else {
+        return;
+    };
+    // SAFETY: before any other thread exists.
+    unsafe { std::env::set_var("LANGUAGE", language) };
+    if matches!(messages_locale, None | Some("C" | "POSIX")) {
+        // SAFETY: as above.
+        let set = unsafe { libc::setlocale(libc::LC_MESSAGES, c"C.UTF-8".as_ptr()) };
+        if set.is_null() {
+            log::warn!("there is no C.UTF-8 locale, so GTK's own strings stay in English");
+        }
+    }
+}
+
 fn setup_actions(app: &adw::Application) {
     let about = gio::ActionEntry::builder("about")
         .activate(|app: &adw::Application, _, _| {
@@ -89,12 +110,11 @@ fn setup_actions(app: &adw::Application) {
                 .version(env!("CARGO_PKG_VERSION"))
                 .license_type(gtk::License::Gpl30)
                 .website("https://github.com/rinflow-dev")
-                .comments(gettextrs::gettext(
-                    "Use one mouse and keyboard across your computers.",
-                ))
+                .comments(tr("Use one mouse and keyboard across your computers."))
                 .build();
-            // Translators: your names, one per line, shown in the About dialog.
-            let credits = gettextrs::gettext("translator-credits");
+            // Translators: your names, one per line, shown in the About
+            // dialog. Leave it as "translator-credits" to show none.
+            let credits = tr("translator-credits");
             if credits != "translator-credits" {
                 dialog.set_translator_credits(&credits);
             }

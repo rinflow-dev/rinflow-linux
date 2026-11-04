@@ -4,7 +4,7 @@ use crate::autostart;
 use rinflow_core::Core;
 use rinflow_core::layout::Offset;
 use rinflow_shell::arrangement::Arrangement;
-use rinflow_shell::i18n::{self, tr, trf};
+use rinflow_shell::i18n::{Text, msg};
 use rinflow_shell::settings::SettingsStore;
 use rinflow_shell::state::SharedState;
 use serde_json::{Map, Value};
@@ -32,11 +32,11 @@ pub struct Services {
 impl Services {
     /// Changes some settings (keys of `Settings`, plus `launch_at_login`),
     /// applies them at once and remembers them.
-    pub fn update_settings(&self, mut values: Map<String, Value>) -> Result<(), String> {
+    pub fn update_settings(&self, mut values: Map<String, Value>) -> Result<(), Text> {
         if let Some(value) = values.remove("launch_at_login") {
-            let enabled = value.as_bool().ok_or_else(|| tr("launch_at_login must be true or false"))?;
+            let enabled = value.as_bool().ok_or_else(|| msg("launch_at_login must be true or false"))?;
             autostart::set(enabled).map_err(|error| {
-                trf("Couldn't change “Start when I sign in”: {error}", &[("error", &error)])
+                msg("Couldn't change “Start when I sign in”: {error}").arg("error", error.to_string())
             })?;
             self.state.set_launch_at_login(autostart::enabled());
         }
@@ -61,10 +61,6 @@ impl Services {
                 let _ = core.set_manual_addresses(settings.manual_addresses.clone());
             }
         }
-        if values.contains_key("language") {
-            i18n::set_language(&settings.language);
-            self.state.retranslate();
-        }
         self.state.set_settings(settings);
         let _ = self.commands.send(AgentCommand::SettingsChanged(keys));
         Ok(())
@@ -76,7 +72,7 @@ impl Services {
 
     /// Forgets a device: disconnected, unplaced, and no longer listed as one
     /// of the user's devices.
-    pub fn forget_device(&self, peer_id: &str) -> Result<(), String> {
+    pub fn forget_device(&self, peer_id: &str) -> Result<(), Text> {
         if let Some(core) = self.core.upgrade() {
             let _ = core.disconnect_peer(peer_id);
             let _ = core.set_placement(peer_id, None);
@@ -86,20 +82,20 @@ impl Services {
         Ok(())
     }
 
-    pub fn accept_pairing(&self, peer_id: &str) -> Result<(), String> {
+    pub fn accept_pairing(&self, peer_id: &str) -> Result<(), Text> {
         let core = self.core()?;
         core.accept_pairing(peer_id)?;
         self.state.set_pairing_accepted(peer_id);
         Ok(())
     }
 
-    pub fn reject_pairing(&self, peer_id: &str) -> Result<(), String> {
-        self.core()?.reject_pairing(peer_id)
+    pub fn reject_pairing(&self, peer_id: &str) -> Result<(), Text> {
+        Ok(self.core()?.reject_pairing(peer_id)?)
     }
 
-    pub fn core(&self) -> Result<Arc<Core>, String> {
+    pub fn core(&self) -> Result<Arc<Core>, Text> {
         self.core
             .upgrade()
-            .ok_or_else(|| tr("The core is shutting down"))
+            .ok_or_else(|| msg("The core is shutting down"))
     }
 }

@@ -43,7 +43,7 @@ class Agent:
         self.s.settimeout(0.5)
         hello = self.read()
         assert hello["type"] == "hello", hello
-        self.send({"type": "hello", "protocol": 1})
+        self.send({"type": "hello", "protocol": 2})
         self.pump(1.0)
 
     def read(self):

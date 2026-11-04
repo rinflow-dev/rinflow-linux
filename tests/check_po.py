@@ -5,6 +5,8 @@
 - a translation has the same {placeholders} as the English (the code fills
   them in by name: a missing or misspelt one shows up raw);
 - menu items keep their mnemonic (one `_`), desktop keywords end with `;`;
+- `translator-credits` names translators, or stays `translator-credits` to
+  show none (not the application's name);
 - msgfmt --check accepts the file.
 
 Usage: check_po.py po/rinflow.pot po/ja.po po/zh_CN.po ..."""
@@ -64,6 +66,8 @@ def main():
                 problems.append(f"{where}: placeholders {placeholders(msgid)} became {placeholders(msgstr)}")
             if msgid.count("_") == 1 and msgid.startswith("_") and msgstr.count("_") != 1:
                 problems.append(f"{where}: the menu mnemonic (_) is lost")
+            if msgid == "translator-credits" and msgstr.strip().lower() == "rinflow":
+                problems.append(f"{where}: the About dialog would credit “Rinflow” as translator; name the translators or leave it as translator-credits")
             if ".desktop.in" in references and msgid.endswith(";") and not msgstr.endswith(";"):
                 problems.append(f"{where}: desktop keywords must end with ';'")
         for msgid in sorted(wanted - seen):

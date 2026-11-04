@@ -5,9 +5,9 @@ use crate::agent::{AgentClient, Status};
 use crate::canvas::ArrangementCanvas;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
-use gettextrs::gettext;
 use gtk::{gio, glib};
 use rinflow_core::ModifierMap;
+use rinflow_shell::i18n::{self, LANGUAGES, tr, trf};
 use rinflow_shell::state::{BackendState, BackendView, Snapshot};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::HashSet;
@@ -22,6 +22,8 @@ mod imp {
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
         pub error_banner: TemplateChild<adw::Banner>,
+        #[template_child]
+        pub menu_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub stack: TemplateChild<adw::ViewStack>,
         #[template_child]
@@ -73,6 +75,10 @@ mod imp {
         pub nearby_rows: RefCell<Vec<adw::ActionRow>>,
         pub empty_rows: RefCell<Vec<adw::ActionRow>>,
         pub pairing_dialog: RefCell<Option<(String, adw::AlertDialog)>>,
+        /// The template's text in English, by object and property: the
+        /// template is built untranslated, and translated from these
+        /// whenever the language changes.
+        pub texts: RefCell<Vec<(glib::Object, &'static str, String)>>,
         /// Set while the snapshot is applied to the controls, so their
         /// change signals do not echo it back to the agent.
         pub applying: Cell<bool>,
@@ -141,7 +147,9 @@ glib::wrapper! {
 }
 
 const THEMES: [&str; 3] = ["system", "light", "dark"];
-use rinflow_shell::i18n::{LANGUAGES, fill};
+
+/// The properties of the template's objects that hold text for the user.
+const TEXT_PROPERTIES: [&str; 6] = ["title", "subtitle", "description", "label", "tooltip-text", "button-label"];
 
 impl RinflowWindow {
     pub fn new(app: &adw::Application) -> Self {
@@ -155,6 +163,10 @@ impl RinflowWindow {
     fn setup(&self) {
         let imp = self.imp();
         let client = imp.client.clone();
+
+        // Before anything is added: what is there now is the template.
+        self.collect_texts();
+        self.retranslate();
 
         let canvas = ArrangementCanvas::default();
         imp.layout_group.add(&canvas);
@@ -174,23 +186,6 @@ impl RinflowWindow {
             move |peer, offset| canvas.set_preview(peer, offset)
         ));
         let _ = imp.canvas.set(canvas);
-
-        imp.modifier_row.set_model(Some(&gtk::StringList::new(&[
-            &gettext("Swap ⌘ and Control (⌘C copies here)"),
-            &gettext("Keep each key in its place"),
-        ])));
-        imp.theme_row.set_model(Some(&gtk::StringList::new(&[
-            &gettext("Follow the system"),
-            &gettext("Light"),
-            &gettext("Dark"),
-        ])));
-        imp.language_row.set_model(Some(&gtk::StringList::new(&[
-            &gettext("Follow the system"),
-            // Each language by its own name, so it can be found from any.
-            "简体中文",
-            "日本語",
-            "English",
-        ])));
 
         client.connect_snapshot(glib::clone!(
             #[weak(rename_to = window)]
@@ -269,6 +264,13 @@ impl RinflowWindow {
                 }
                 let language = LANGUAGES[(row.selected() as usize).min(LANGUAGES.len() - 1)];
                 window.imp().client.update_setting("language", language.into());
+                // Not from inside the combo row's own signal: switching
+                // replaces its list.
+                glib::idle_add_local_once(glib::clone!(
+                    #[weak]
+                    window,
+                    move || window.switch_language(language)
+                ));
             }
         ));
         imp.port_spin.connect_value_changed(glib::clone!(
@@ -298,6 +300,89 @@ impl RinflowWindow {
         ));
     }
 
+    /// Records the English text of the template's objects (see `texts`).
+    /// Labels are left out: inside the library's widgets they show what
+    /// their parents say.
+    fn collect_texts(&self) {
+        fn walk(widget: &gtk::Widget, objects: &mut Vec<glib::Object>) {
+            if !widget.is::<gtk::Label>() {
+                objects.push(widget.clone().upcast());
+            }
+            let mut child = widget.first_child();
+            while let Some(widget) = child {
+                walk(&widget, objects);
+                child = widget.next_sibling();
+            }
+        }
+        let imp = self.imp();
+        let mut objects = Vec::new();
+        walk(self.upcast_ref(), &mut objects);
+        let pages = imp.stack.pages();
+        objects.extend((0..pages.n_items()).filter_map(|i| pages.item(i)));
+        let mut texts = Vec::new();
+        for object in objects {
+            for property in TEXT_PROPERTIES {
+                let Some(spec) = object.find_property(property) else { continue };
+                if spec.value_type() != String::static_type() || !spec.flags().contains(glib::ParamFlags::WRITABLE) {
+                    continue;
+                }
+                if let Some(text) = object.property::<Option<String>>(property).filter(|text| !text.is_empty()) {
+                    texts.push((object.clone(), property, text));
+                }
+            }
+        }
+        *imp.texts.borrow_mut() = texts;
+    }
+
+    /// Puts the window in the language `i18n` has now: the template's text,
+    /// the menus and the lists. What comes from the snapshot is rendered
+    /// again by the caller.
+    fn retranslate(&self) {
+        let imp = self.imp();
+        let applying = imp.applying.replace(true);
+        for (object, property, english) in imp.texts.borrow().iter() {
+            object.set_property(property, tr(english));
+        }
+        imp.menu_button.set_menu_model(Some(&main_menu()));
+        let choices: [(&adw::ComboRow, Vec<String>); 3] = [
+            (
+                &imp.modifier_row,
+                vec![tr("Swap ⌘ and Control (⌘C copies here)"), tr("Keep each key in its place")],
+            ),
+            (&imp.theme_row, vec![tr("Follow the system"), tr("Light"), tr("Dark")]),
+            (
+                &imp.language_row,
+                // Each language by its own name, so it can be found from any.
+                vec![tr("Follow the system"), "简体中文".into(), "日本語".into(), "English".into()],
+            ),
+        ];
+        for (row, items) in choices {
+            let selected = row.selected();
+            let items: Vec<&str> = items.iter().map(String::as_str).collect();
+            row.set_model(Some(&gtk::StringList::new(&items)));
+            if selected != gtk::INVALID_LIST_POSITION {
+                row.set_selected(selected);
+            }
+        }
+        imp.applying.set(applying);
+    }
+
+    /// The user chose a language: everything shown follows at once.
+    fn switch_language(&self, language: &str) {
+        if i18n::language() == language {
+            return;
+        }
+        i18n::set_language(language);
+        self.retranslate();
+        let client = &self.imp().client;
+        if let Some(snapshot) = client.snapshot() {
+            self.render(&snapshot);
+        }
+        if let Some(status) = client.status() {
+            self.status_changed(&status);
+        }
+    }
+
     fn toast(&self, message: &str) {
         self.imp().toast_overlay.add_toast(adw::Toast::new(message));
     }
@@ -307,11 +392,11 @@ impl RinflowWindow {
         match status {
             Status::Connected => {}
             Status::Connecting => {
-                imp.error_banner.set_title(&gettext("Starting the Rinflow agent…"));
+                imp.error_banner.set_title(&tr("Starting the Rinflow agent…"));
                 imp.error_banner.set_revealed(true);
             }
             Status::Unreachable(detail) => {
-                imp.error_banner.set_title(detail);
+                imp.error_banner.set_title(&detail.translate());
                 imp.error_banner.set_revealed(true);
             }
         }
@@ -327,26 +412,19 @@ impl RinflowWindow {
             return;
         }
         imp.applying.set(true);
-
-        match &snapshot.last_error {
-            Some(error) => {
-                imp.error_banner.set_title(error);
-                imp.error_banner.set_revealed(true);
-            }
-            None => imp.error_banner.set_revealed(false),
+        // Another window (or client) changed the language.
+        if snapshot.settings.language != i18n::language() {
+            i18n::set_language(&snapshot.settings.language);
+            self.retranslate();
         }
 
-        apply_backend(&imp.capture_row, &imp.capture_icon, &imp.capture_retry, &snapshot.input.capture, true);
-        apply_backend(&imp.emulation_row, &imp.emulation_icon, &imp.emulation_retry, &snapshot.input.emulation, false);
-
-        self.rebuild_devices(snapshot);
+        self.render(snapshot);
         self.apply_pairing(snapshot);
 
         let settings = &snapshot.settings;
         imp.sharing_row.set_active(settings.sharing);
         imp.paired_only_row.set_active(settings.paired_only);
         imp.clipboard_row.set_active(settings.clipboard);
-        imp.clipboard_row.set_subtitle(&clipboard_subtitle(snapshot));
         imp.autostart_row.set_active(snapshot.launch_at_login);
         imp.modifier_row
             .set_selected(if settings.modifier_map == ModifierMap::SWAP { 0 } else { 1 });
@@ -356,13 +434,32 @@ impl RinflowWindow {
             .set_selected(LANGUAGES.iter().position(|l| *l == settings.language).unwrap_or(0) as u32);
         imp.port_spin
             .set_value(f64::from(settings.port.unwrap_or(snapshot.control_port)));
+        imp.applying.set(false);
+    }
+
+    /// What a snapshot says, in words: errors, input, devices, this device.
+    fn render(&self, snapshot: &Snapshot) {
+        let imp = self.imp();
+        match &snapshot.last_error {
+            Some(error) => {
+                imp.error_banner.set_title(&error.translate());
+                imp.error_banner.set_revealed(true);
+            }
+            None => imp.error_banner.set_revealed(false),
+        }
+
+        apply_backend(&imp.capture_row, &imp.capture_icon, &imp.capture_retry, &snapshot.input.capture, true);
+        apply_backend(&imp.emulation_row, &imp.emulation_icon, &imp.emulation_retry, &snapshot.input.emulation, false);
+
+        self.rebuild_devices(snapshot);
+        imp.clipboard_row.set_subtitle(&clipboard_subtitle(snapshot));
         imp.name_row.set_subtitle(&snapshot.device_name);
         imp.fingerprint_row.set_subtitle(
             &snapshot
                 .fingerprint
                 .as_deref()
                 .map(fingerprint_groups)
-                .unwrap_or_else(|| gettext("Not started yet")),
+                .unwrap_or_else(|| tr("Not started yet")),
         );
         imp.version_row.set_subtitle(&snapshot.agent_version);
 
@@ -376,7 +473,6 @@ impl RinflowWindow {
             let online: HashSet<String> = snapshot.peers.iter().map(|p| p.id.clone()).collect();
             canvas.set_layout(snapshot.layout.clone(), connected, online, snapshot.driving.clone());
         }
-        imp.applying.set(false);
     }
 
     fn rebuild_devices(&self, snapshot: &Snapshot) {
@@ -399,42 +495,42 @@ impl RinflowWindow {
             row.add_prefix(&gtk::Image::from_icon_name(platform_icon(&device.platform)));
             let mut subtitle = match (session, online) {
                 (Some(s), _) if s.status == rinflow_shell::state::SessionStatus::Connected => {
-                    let mut text = gettext("Connected");
+                    let mut text = tr("Connected");
                     if let Some(ms) = s.latency_ms {
                         text.push_str(" · ");
                         // Translators: the time a message takes to the other device and back.
-                        text.push_str(&fill(&gettext("{ms} ms"), &[("ms", &ms)]));
+                        text.push_str(&trf("{ms} ms", &[("ms", &ms)]));
                     }
                     if s.remote_control {
                         text.push_str(" · ");
-                        text.push_str(&gettext("controlling this device"));
+                        text.push_str(&tr("controlling this device"));
                     }
                     if driving {
                         text.push_str(" · ");
-                        text.push_str(&gettext("you are controlling it"));
+                        text.push_str(&tr("you are controlling it"));
                     }
                     text
                 }
-                (Some(_), _) => gettext("Connecting…"),
-                (None, true) => gettext("Online"),
-                (None, false) => gettext("Offline"),
+                (Some(_), _) => tr("Connecting…"),
+                (None, true) => tr("Online"),
+                (None, false) => tr("Offline"),
             };
             if let Some(side) = device.side {
                 subtitle.push_str(" · ");
                 subtitle.push_str(&side_name(side));
             } else if device.offset.is_none() {
                 subtitle.push_str(" · ");
-                subtitle.push_str(&gettext("not placed"));
+                subtitle.push_str(&tr("not placed"));
             }
             if !paired {
                 subtitle.push_str(" · ");
-                subtitle.push_str(&gettext("not paired"));
+                subtitle.push_str(&tr("not paired"));
             }
             row.set_subtitle(&subtitle);
 
             let connected = session.is_some_and(|s| s.status == rinflow_shell::state::SessionStatus::Connected);
             let button = gtk::Button::builder()
-                .label(if connected { gettext("Disconnect") } else { gettext("Connect") })
+                .label(if connected { tr("Disconnect") } else { tr("Connect") })
                 .valign(gtk::Align::Center)
                 .css_classes(["flat"])
                 .sensitive(connected || online)
@@ -447,10 +543,10 @@ impl RinflowWindow {
             let menu = gio::Menu::new();
             let place = gio::Menu::new();
             for (side, label) in [
-                ("left", gettext("Place on the left")),
-                ("right", gettext("Place on the right")),
-                ("top", gettext("Place above")),
-                ("bottom", gettext("Place below")),
+                ("left", tr("Place on the left")),
+                ("right", tr("Place on the right")),
+                ("top", tr("Place above")),
+                ("bottom", tr("Place below")),
             ] {
                 place.append(
                     Some(&label),
@@ -460,9 +556,9 @@ impl RinflowWindow {
             menu.append_section(None, &place);
             let more = gio::Menu::new();
             if device.offset.is_some() {
-                more.append(Some(&gettext("Remove placement")), Some(&format!("win.unplace('{}')", device.peer_id)));
+                more.append(Some(&tr("Remove placement")), Some(&format!("win.unplace('{}')", device.peer_id)));
             }
-            more.append(Some(&gettext("Forget this device")), Some(&format!("win.forget('{}')", device.peer_id)));
+            more.append(Some(&tr("Forget this device")), Some(&format!("win.forget('{}')", device.peer_id)));
             menu.append_section(None, &more);
             let menu_button = gtk::MenuButton::builder()
                 .icon_name("view-more-symbolic")
@@ -476,8 +572,8 @@ impl RinflowWindow {
         }
         if device_rows.is_empty() {
             let row = adw::ActionRow::builder()
-                .title(gettext("No devices yet"))
-                .subtitle(gettext("Devices that connect once stay here. Nearby devices are listed below."))
+                .title(tr("No devices yet"))
+                .subtitle(tr("Devices that connect once stay here. Nearby devices are listed below."))
                 .build();
             row.add_css_class("dim-label");
             imp.my_devices_group.add(&row);
@@ -499,7 +595,7 @@ impl RinflowWindow {
             row.add_prefix(&gtk::Image::from_icon_name(platform_icon(&peer.platform)));
             let connecting = snapshot.sessions.iter().any(|s| s.peer_id == peer.id);
             let button = gtk::Button::builder()
-                .label(if connecting { gettext("Connecting…") } else { gettext("Connect") })
+                .label(if connecting { tr("Connecting…") } else { tr("Connect") })
                 .valign(gtk::Align::Center)
                 .css_classes(["flat"])
                 .sensitive(!connecting)
@@ -513,21 +609,21 @@ impl RinflowWindow {
         for address in &snapshot.manual_addresses {
             let text = address["address"].as_str().unwrap_or_default();
             let status = match address["status"].as_str().unwrap_or_default() {
-                "found" => gettext("found"),
-                "no_response" => gettext("no response"),
-                "unresolved" => gettext("address not found"),
-                _ => gettext("searching…"),
+                "found" => tr("found"),
+                "no_response" => tr("no response"),
+                "unresolved" => tr("address not found"),
+                _ => tr("searching…"),
             };
             let row = adw::ActionRow::builder()
                 .title(text)
-                .subtitle(format!("{} · {status}", gettext("Added by address")))
+                .subtitle(format!("{} · {status}", tr("Added by address")))
                 .build();
             row.add_prefix(&gtk::Image::from_icon_name("network-wired-symbolic"));
             let remove = gtk::Button::builder()
                 .icon_name("edit-delete-symbolic")
                 .valign(gtk::Align::Center)
                 .css_classes(["flat"])
-                .tooltip_text(gettext("Remove this address"))
+                .tooltip_text(tr("Remove this address"))
                 .build();
             let remaining: Vec<String> = snapshot
                 .settings
@@ -552,8 +648,8 @@ impl RinflowWindow {
         }
         if nearby_rows.is_empty() {
             let row = adw::ActionRow::builder()
-                .title(gettext("Nothing nearby"))
-                .subtitle(gettext("Open Rinflow on another device on this network, or add it by address."))
+                .title(tr("Nothing nearby"))
+                .subtitle(tr("Open Rinflow on another device on this network, or add it by address."))
                 .build();
             row.add_css_class("dim-label");
             imp.nearby_group.add(&row);
@@ -571,7 +667,7 @@ impl RinflowWindow {
                 if let Some((_, dialog)) = imp.pairing_dialog.borrow().as_ref()
                     && pairing.accepted
                 {
-                    dialog.set_body(&gettext("Waiting for the other device to confirm…"));
+                    dialog.set_body(&tr("Waiting for the other device to confirm…"));
                     dialog.set_response_enabled("accept", false);
                 }
             }
@@ -579,8 +675,8 @@ impl RinflowWindow {
                 self.close_pairing();
                 let dialog = adw::AlertDialog::builder()
                     // Translators: {name} is the other device's name.
-                    .heading(fill(&gettext("Pair with {name}"), &[("name", &pairing.name)]))
-                    .body(gettext("Check that the other device shows the same six digits, then accept on both."))
+                    .heading(trf("Pair with {name}", &[("name", &pairing.name)]))
+                    .body(tr("Check that the other device shows the same six digits, then accept on both."))
                     .close_response("reject")
                     .default_response("accept")
                     .build();
@@ -592,9 +688,9 @@ impl RinflowWindow {
                     .margin_bottom(6)
                     .build();
                 dialog.set_extra_child(Some(&code));
-                dialog.add_response("reject", &gettext("Reject"));
+                dialog.add_response("reject", &tr("Reject"));
                 dialog.set_response_appearance("reject", adw::ResponseAppearance::Destructive);
-                dialog.add_response("accept", &gettext("Accept"));
+                dialog.add_response("accept", &tr("Accept"));
                 dialog.set_response_appearance("accept", adw::ResponseAppearance::Suggested);
                 let peer_id = pairing.peer_id.clone();
                 dialog.connect_response(
@@ -640,12 +736,12 @@ impl RinflowWindow {
             .unwrap_or_else(|| peer_id.to_owned());
         let dialog = adw::AlertDialog::builder()
             // Translators: {name} is a device's name.
-            .heading(fill(&gettext("Forget {name}?"), &[("name", &name)]))
-            .body(gettext("It is disconnected, unplaced and unpaired. It shows up again as a nearby device while it is online."))
+            .heading(trf("Forget {name}?", &[("name", &name)]))
+            .body(tr("It is disconnected, unplaced and unpaired. It shows up again as a nearby device while it is online."))
             .close_response("cancel")
             .build();
-        dialog.add_response("cancel", &gettext("Cancel"));
-        dialog.add_response("forget", &gettext("Forget"));
+        dialog.add_response("cancel", &tr("Cancel"));
+        dialog.add_response("forget", &tr("Forget"));
         dialog.set_response_appearance("forget", adw::ResponseAppearance::Destructive);
         let peer_id = peer_id.to_owned();
         dialog.connect_response(
@@ -661,17 +757,17 @@ impl RinflowWindow {
 
     fn add_device_dialog(&self) {
         let dialog = adw::AlertDialog::builder()
-            .heading(gettext("Add a Device by Address"))
-            .body(gettext("For networks that don't carry discovery (guest Wi-Fi, VPNs): the other device's IP address or name. Only one of the two needs the other's address."))
+            .heading(tr("Add a Device by Address"))
+            .body(tr("For networks that don't carry discovery (guest Wi-Fi, VPNs): the other device's IP address or name. Only one of the two needs the other's address."))
             .close_response("cancel")
             .default_response("add")
             .build();
-        let entry = adw::EntryRow::builder().title(gettext("Address")).build();
+        let entry = adw::EntryRow::builder().title(tr("Address")).build();
         let group = adw::PreferencesGroup::new();
         group.add(&entry);
         dialog.set_extra_child(Some(&group));
-        dialog.add_response("cancel", &gettext("Cancel"));
-        dialog.add_response("add", &gettext("Add"));
+        dialog.add_response("cancel", &tr("Cancel"));
+        dialog.add_response("add", &tr("Add"));
         dialog.set_response_appearance("add", adw::ResponseAppearance::Suggested);
         dialog.connect_response(
             Some("add"),
@@ -712,25 +808,25 @@ fn apply_backend(row: &adw::ActionRow, icon: &gtk::Image, retry: &gtk::Button, v
     let (subtitle, icon_name, class) = match view.state {
         BackendState::Ready => (
             if capture {
-                gettext("Ready: move the pointer off the edge toward a placed device.")
+                tr("Ready: move the pointer off the edge toward a placed device.")
             } else {
-                gettext("Ready: placed devices can move their pointer here.")
+                tr("Ready: placed devices can move their pointer here.")
             },
             "emblem-ok-symbolic",
             Some("success"),
         ),
-        BackendState::Prompting => (view.detail.clone(), "dialog-question-symbolic", Some("warning")),
+        BackendState::Prompting => (view.detail.translate(), "dialog-question-symbolic", Some("warning")),
         BackendState::Waiting => (
             if view.detail.is_empty() {
-                gettext("Connecting to the desktop…")
+                tr("Connecting to the desktop…")
             } else {
-                view.detail.clone()
+                view.detail.translate()
             },
             "content-loading-symbolic",
             None,
         ),
-        BackendState::Denied => (view.detail.clone(), "dialog-warning-symbolic", Some("error")),
-        BackendState::Unavailable => (view.detail.clone(), "action-unavailable-symbolic", None),
+        BackendState::Denied => (view.detail.translate(), "dialog-warning-symbolic", Some("error")),
+        BackendState::Unavailable => (view.detail.translate(), "action-unavailable-symbolic", None),
     };
     row.set_subtitle(&subtitle);
     icon.set_icon_name(Some(icon_name));
@@ -744,11 +840,11 @@ fn apply_backend(row: &adw::ActionRow, icon: &gtk::Image, retry: &gtk::Button, v
 fn clipboard_subtitle(snapshot: &Snapshot) -> String {
     let emulation = snapshot.input.emulation.state;
     if snapshot.input.clipboard || !snapshot.settings.clipboard {
-        gettext("Text and images copied here go along when the pointer moves to another device, and come back with it.")
+        tr("Text and images copied here go along when the pointer moves to another device, and come back with it.")
     } else if emulation == BackendState::Ready {
-        gettext("This desktop doesn't share its clipboard with Rinflow. It needs the clipboard portal (GNOME 45 or Plasma 6.2 and newer).")
+        tr("This desktop doesn't share its clipboard with Rinflow. It needs the clipboard portal (GNOME 45 or Plasma 6.2 and newer).")
     } else {
-        gettext("Available once other devices may control this one: the clipboard comes with that permission.")
+        tr("Available once other devices may control this one: the clipboard comes with that permission.")
     }
 }
 
@@ -765,17 +861,17 @@ fn platform_name(platform: &str) -> String {
         "windows" => "Windows".to_owned(),
         "linux" => "Linux".to_owned(),
         "android" => "Android".to_owned(),
-        _ => gettext("Device"),
+        _ => tr("Device"),
     }
 }
 
 fn side_name(side: rinflow_core::layout::Side) -> String {
     use rinflow_core::layout::Side;
     match side {
-        Side::Left => gettext("on the left"),
-        Side::Right => gettext("on the right"),
-        Side::Top => gettext("above"),
-        Side::Bottom => gettext("below"),
+        Side::Left => tr("on the left"),
+        Side::Right => tr("on the right"),
+        Side::Top => tr("above"),
+        Side::Bottom => tr("below"),
     }
 }
 
@@ -787,4 +883,16 @@ fn fingerprint_groups(hex: &str) -> String {
         .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// The header bar's menu.
+fn main_menu() -> gio::Menu {
+    let menu = gio::Menu::new();
+    let agent = gio::Menu::new();
+    agent.append(Some(&tr("_Quit Rinflow Agent")), Some("app.quit-agent"));
+    menu.append_section(None, &agent);
+    let about = gio::Menu::new();
+    about.append(Some(&tr("_About Rinflow")), Some("app.about"));
+    menu.append_section(None, &about);
+    menu
 }

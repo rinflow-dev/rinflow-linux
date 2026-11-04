@@ -6,6 +6,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::gio;
 use rinflow_core::layout::Offset;
+use rinflow_shell::i18n::{Text, msg};
 use rinflow_shell::protocol::PROTOCOL_VERSION;
 use rinflow_shell::state::Snapshot;
 use serde::Deserialize;
@@ -13,6 +14,7 @@ use serde_json::{Map, Value, json};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 #[derive(Deserialize)]
@@ -20,7 +22,7 @@ use std::time::Duration;
 enum Incoming {
     Hello { protocol: u32, agent_version: String },
     State(Snapshot),
-    Error { message: String },
+    Error { message: Text },
     PlacementPreview { peer_id: String, offset: Option<Offset> },
 }
 
@@ -30,7 +32,7 @@ pub enum Status {
     Connecting,
     Connected,
     /// The agent could not be started or reached; the text says why.
-    Unreachable(String),
+    Unreachable(Text),
 }
 
 type SnapshotHandler = Box<dyn Fn(&Snapshot)>;
@@ -115,16 +117,14 @@ impl AgentClient {
                     if !spawned {
                         spawned = true;
                         if let Err(error) = spawn_agent() {
-                            self.set_status(Status::Unreachable(rinflow_shell::i18n::fill(
-                                &gettextrs::gettext("The agent couldn't be started: {error}"),
-                                &[("error", &error)],
-                            )));
+                            self.set_status(Status::Unreachable(
+                                msg("The agent couldn't be started: {error}").arg("error", error.to_string()),
+                            ));
                         }
                     } else if attempts > 20 {
-                        self.set_status(Status::Unreachable(rinflow_shell::i18n::fill(
-                            &gettextrs::gettext("The agent isn't answering ({error})"),
-                            &[("error", &error)],
-                        )));
+                        self.set_status(Status::Unreachable(
+                            msg("The agent isn't answering ({error})").arg("error", error.to_string()),
+                        ));
                     }
                     glib::timeout_future(Duration::from_millis(if attempts > 20 { 2000 } else { 400 }))
                         .await;
@@ -149,10 +149,11 @@ impl AgentClient {
             match serde_json::from_str::<Incoming>(&line) {
                 Ok(Incoming::Hello { protocol, agent_version }) => {
                     if protocol != PROTOCOL_VERSION {
-                        self.report_error(&rinflow_shell::i18n::fill(
-                            &gettextrs::gettext("The agent and this window are different versions; update both ({version} / {protocol})"),
-                            &[("version", &agent_version), ("protocol", &protocol)],
-                        ));
+                        self.report_error(
+                            &msg("The agent and this window are different versions; update both ({version} / {protocol})")
+                                .arg("version", agent_version)
+                                .arg("protocol", protocol.to_string()),
+                        );
                     }
                 }
                 Ok(Incoming::State(snapshot)) => {
@@ -189,10 +190,16 @@ impl AgentClient {
         }
     }
 
-    fn report_error(&self, message: &str) {
+    fn report_error(&self, message: &Text) {
+        let message = message.translate();
         for handler in self.0.on_error.borrow().iter() {
-            handler(message);
+            handler(&message);
         }
+    }
+
+    /// How the window stands with the agent now.
+    pub fn status(&self) -> Option<Status> {
+        self.0.status.borrow().clone()
     }
 
     fn send(&self, request: Value) {
@@ -292,6 +299,15 @@ fn socket_path() -> PathBuf {
     runtime.join("rinflow").join("agent.sock")
 }
 
+/// The user's `LANGUAGE`, as it was before the window set its own for GTK.
+static LANGUAGE_LIST: OnceLock<Option<String>> = OnceLock::new();
+
+/// Remembers the user's `LANGUAGE` (see `main`), so the agent this window
+/// starts gets the user's environment rather than the window's.
+pub fn keep_language_list(list: Option<String>) {
+    let _ = LANGUAGE_LIST.set(list);
+}
+
 /// Starts the agent next to this binary (or from `PATH`), detached, so it
 /// outlives the window.
 fn spawn_agent() -> std::io::Result<()> {
@@ -301,7 +317,12 @@ fn spawn_agent() -> std::io::Result<()> {
         .and_then(|exe| exe.parent().map(|dir| dir.join("rinflow-agent")))
         .filter(|path| path.is_file());
     let program = beside.unwrap_or_else(|| PathBuf::from("rinflow-agent"));
-    std::process::Command::new(program)
+    let mut command = std::process::Command::new(program);
+    match LANGUAGE_LIST.get().cloned().flatten() {
+        Some(list) => command.env("LANGUAGE", list),
+        None => command.env_remove("LANGUAGE"),
+    };
+    command
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
