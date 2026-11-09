@@ -7,7 +7,7 @@ use reis::tokio::EiConvertEventStream;
 use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream;
 
-pub const CLIENT_NAME: &str = "com.rinflow.linux";
+pub const CLIENT_NAME: &str = "com.rinflow.rinflow";
 
 pub async fn handshake(
     fd: OwnedFd,

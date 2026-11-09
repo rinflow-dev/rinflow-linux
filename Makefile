@@ -12,7 +12,7 @@
 PREFIX ?= /usr/local
 DESTDIR ?=
 CARGO ?= cargo
-APP_ID := com.rinflow.linux
+APP_ID := com.rinflow.rinflow
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 LOCALEDIR := $(PREFIX)/share/locale
 # Translations (GNU gettext): po/LINGUAS names the languages, po/POTFILES

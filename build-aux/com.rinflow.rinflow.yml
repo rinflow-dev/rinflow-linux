@@ -4,8 +4,8 @@
 # rinflow-linux side by side), so the path dependency resolves:
 #
 #   python3 flatpak-cargo-generator.py rinflow-linux/Cargo.lock -o rinflow-linux/build-aux/cargo-sources.json
-#   flatpak-builder --user --install --force-clean build-dir rinflow-linux/build-aux/com.rinflow.linux.yml
-app-id: com.rinflow.linux
+#   flatpak-builder --user --install --force-clean build-dir rinflow-linux/build-aux/com.rinflow.rinflow.yml
+app-id: com.rinflow.rinflow
 runtime: org.gnome.Platform
 runtime-version: "50"
 sdk: org.gnome.Sdk
@@ -36,10 +36,10 @@ modules:
       - install -Dm755 rinflow-linux/target/release/rinflow-agent /app/bin/rinflow-agent
       # The catalogs and the translated desktop entry and metainfo (msgfmt).
       - make -C rinflow-linux locale
-      - install -Dm644 rinflow-linux/target/data/com.rinflow.linux.desktop /app/share/applications/com.rinflow.linux.desktop
-      - install -Dm644 rinflow-linux/target/data/com.rinflow.linux.metainfo.xml /app/share/metainfo/com.rinflow.linux.metainfo.xml
-      - install -Dm644 rinflow-linux/data/icons/com.rinflow.linux.svg /app/share/icons/hicolor/scalable/apps/com.rinflow.linux.svg
-      - install -Dm644 rinflow-linux/data/icons/com.rinflow.linux-symbolic.svg /app/share/icons/hicolor/symbolic/apps/com.rinflow.linux-symbolic.svg
+      - install -Dm644 rinflow-linux/target/data/com.rinflow.rinflow.desktop /app/share/applications/com.rinflow.rinflow.desktop
+      - install -Dm644 rinflow-linux/target/data/com.rinflow.rinflow.metainfo.xml /app/share/metainfo/com.rinflow.rinflow.metainfo.xml
+      - install -Dm644 rinflow-linux/data/icons/com.rinflow.rinflow.svg /app/share/icons/hicolor/scalable/apps/com.rinflow.rinflow.svg
+      - install -Dm644 rinflow-linux/data/icons/com.rinflow.rinflow-symbolic.svg /app/share/icons/hicolor/symbolic/apps/com.rinflow.rinflow-symbolic.svg
       - for lang in $(grep -v '^#' rinflow-linux/po/LINGUAS); do install -Dm644 rinflow-linux/target/locale/$lang/LC_MESSAGES/rinflow.mo /app/share/locale/$lang/LC_MESSAGES/rinflow.mo; done
     sources:
       - type: dir

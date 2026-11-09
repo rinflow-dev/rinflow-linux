@@ -3,6 +3,7 @@ name = "rinflow-input"
 description = "Input capture and emulation backends for the Linux agent: portals + libei, gamescope's EIS"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 

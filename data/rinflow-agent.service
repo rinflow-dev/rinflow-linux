@@ -9,7 +9,9 @@ Documentation=https://github.com/rinflow-dev
 [Service]
 Type=simple
 ExecStart=/usr/bin/rinflow-agent
-Restart=always
+# on-failure, not always: "Quit" in the window and a second agent that
+# finds one already running both exit 0 and must stay stopped.
+Restart=on-failure
 RestartSec=2
 Slice=background.slice
 Environment=RUST_LOG=info

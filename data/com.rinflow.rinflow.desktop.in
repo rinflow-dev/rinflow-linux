@@ -4,7 +4,7 @@ Name=Rinflow
 GenericName=Mouse and keyboard sharing
 Comment=Use one mouse and keyboard across your computers
 Exec=rinflow
-Icon=com.rinflow.linux
+Icon=com.rinflow.rinflow
 Terminal=false
 Categories=Utility;
 # Translators: search terms, separated by semicolons and ending with one. Keep the English ones and add your own.

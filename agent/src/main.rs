@@ -69,8 +69,9 @@ async fn run() -> i32 {
             return 2;
         }
     };
-    let listener = match ipc::listen(&paths::socket_path()).await {
-        Ok(listener) => listener,
+    // `_lock` (not `_`) keeps the single-instance lock until the agent exits.
+    let (listener, _lock) = match ipc::listen(&paths::socket_path()).await {
+        Ok(listening) => listening,
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
             log::info!("another agent is already running");
             return 0;
@@ -171,6 +172,9 @@ async fn run() -> i32 {
 
     let mut poll = tokio::time::interval(Duration::from_secs(1));
     let mut tick = tokio::time::interval(Duration::from_millis(20));
+    // The tick is only polled while driving; the default (Burst) would fire
+    // every tick missed while idle back to back at the next crossing.
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
     log::info!("rinflow-agent {} as {} ({})", env!("CARGO_PKG_VERSION"), identity.device_name, identity.device_id);
 

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 /// The name shared by the data, state and runtime directories.
 pub const APP_DIR: &str = "rinflow";
 /// The application ID, as the desktop file and the window know it.
-pub const APP_ID: &str = "com.rinflow.linux";
+pub const APP_ID: &str = "com.rinflow.rinflow";
 
 fn xdg(variable: &str, fallback: &[&str]) -> PathBuf {
     if let Some(value) = std::env::var_os(variable).filter(|v| !v.is_empty()) {

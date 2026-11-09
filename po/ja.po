@@ -643,24 +643,24 @@ msgstr ""
 msgid "Unpaired."
 msgstr "ペアリングを解除しました。"
 
-#: data/com.rinflow.linux.desktop.in:3
+#: data/com.rinflow.rinflow.desktop.in:3
 msgid "Rinflow"
 msgstr "Rinflow"
 
-#: data/com.rinflow.linux.desktop.in:4
+#: data/com.rinflow.rinflow.desktop.in:4
 msgid "Mouse and keyboard sharing"
 msgstr "マウスとキーボードの共有"
 
-#: data/com.rinflow.linux.desktop.in:5 data/com.rinflow.linux.metainfo.xml.in:7
+#: data/com.rinflow.rinflow.desktop.in:5 data/com.rinflow.rinflow.metainfo.xml.in:7
 msgid "Use one mouse and keyboard across your computers"
 msgstr "1 組のマウスとキーボードで、すべてのコンピューターを操作"
 
 #. Translators: search terms, separated by semicolons and ending with one. Keep the English ones and add your own.
-#: data/com.rinflow.linux.desktop.in:11
+#: data/com.rinflow.rinflow.desktop.in:11
 msgid "kvm;mouse;keyboard;share;cursor;"
 msgstr "kvm;mouse;keyboard;share;cursor;マウス;キーボード;共有;カーソル;"
 
-#: data/com.rinflow.linux.metainfo.xml.in:12
+#: data/com.rinflow.rinflow.metainfo.xml.in:12
 msgid ""
 "Move the pointer off the edge of this screen and it appears on the computer "
 "next to it: a Mac, a Windows PC, another Linux machine or a Steam Deck. The "
@@ -671,7 +671,7 @@ msgstr ""
 "Linux マシン、Steam Deck) に現れ、キーボードもそちらに切り替わります。接続は"
 "すべて暗号化され、新しいデバイスとは 6 桁のコードでペアリングします。"
 
-#: data/com.rinflow.linux.metainfo.xml.in:13
+#: data/com.rinflow.rinflow.metainfo.xml.in:13
 msgid ""
 "On GNOME and KDE the desktop asks once whether Rinflow may capture and play "
 "input. In Steam Deck's Gaming Mode this device can be controlled by others."
@@ -680,7 +680,7 @@ msgstr ""
 "スクトップが一度だけ確認します。Steam Deck のゲームモードでは、このデバイスを"
 "他のデバイスから操作できます。"
 
-#: data/com.rinflow.linux.metainfo.xml.in:14
+#: data/com.rinflow.rinflow.metainfo.xml.in:14
 msgid ""
 "Optionally the clipboard goes along: text and images copied on one computer "
 "can be pasted on the next."
@@ -688,7 +688,7 @@ msgstr ""
 "クリップボードも共有できます。あるコンピューターでコピーしたテキストや画像"
 "を、隣のコンピューターで貼り付けられます。"
 
-#: data/com.rinflow.linux.metainfo.xml.in:42
+#: data/com.rinflow.rinflow.metainfo.xml.in:42
 msgid ""
 "First Linux release: GNOME and KDE on Wayland through the input portals, "
 "Steam Deck Gaming Mode as a controlled device, and clipboard sharing (text, "

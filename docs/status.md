@@ -52,6 +52,19 @@ or found broken.
   messages untranslated (protocol 2) and the window translates everything
   it shows, so a change of the setting applies to the whole window at once,
   without a restart.
+- **Release review fixes** (new): a device ID with a `'` no longer aborts
+  the window (menu targets are typed variants, never parsed strings), and
+  names from other devices are plain text, not markup. The pointer is
+  never left captured: an activation without a position, a refused
+  Release, or `Disabled` mid-capture all hand it back and tell the driver;
+  Ctrl+Alt+Esc works even when nothing is driven (`CaptureCommand::Escape`).
+  A stopped capture backend closes its portal session instead of being
+  aborted, and Retry restarts only a backend that isn't working. The key
+  repeat tick no longer bursts after idling. One agent at a time (a lock
+  before the socket), the user service restarts only on failure, and the
+  window starts it through systemd when it runs the same program. A
+  pending pairing can't be replaced by another device's request, Enter no
+  longer accepts it, and Accept waits 1.5 s after the code is shown.
 - **When the core cannot start** (new): its port taken, say, the agent stays
   up and the window says why and what to do, instead of the agent exiting.
 

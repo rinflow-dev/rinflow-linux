@@ -31,12 +31,15 @@ template $RinflowWindow : Adw.ApplicationWindow {
         orientation: vertical;
 
         Adw.Banner error_banner {
+          // Errors and device names are plain text, not Pango markup.
+          use-markup: false;
           button-label: _("Dismiss");
         }
 
         // A pairing accepted here, waiting for the other device: shown
         // here rather than in a dialog that would block the window.
         Adw.Banner pairing_banner {
+          use-markup: false;
           button-label: _("Cancel");
         }
 

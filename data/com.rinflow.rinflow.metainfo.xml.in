@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.rinflow.linux</id>
+  <id>com.rinflow.rinflow</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name translate="no">Rinflow</name>
@@ -13,7 +13,7 @@
     <p>On GNOME and KDE the desktop asks once whether Rinflow may capture and play input. In Steam Deck's Gaming Mode this device can be controlled by others.</p>
     <p>Optionally the clipboard goes along: text and images copied on one computer can be pasted on the next.</p>
   </description>
-  <launchable type="desktop-id">com.rinflow.linux.desktop</launchable>
+  <launchable type="desktop-id">com.rinflow.rinflow.desktop</launchable>
   <provides>
     <binary>rinflow</binary>
     <binary>rinflow-agent</binary>

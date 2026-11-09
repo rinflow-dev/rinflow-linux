@@ -6,8 +6,8 @@ app/src/agent.rs
 app/src/canvas.rs
 app/src/main.rs
 app/src/window.rs
-data/com.rinflow.linux.desktop.in
-data/com.rinflow.linux.metainfo.xml.in
+data/com.rinflow.rinflow.desktop.in
+data/com.rinflow.rinflow.metainfo.xml.in
 data/ui/window.blp
 shell/src/settings.rs
 shell/src/state.rs

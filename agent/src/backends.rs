@@ -10,7 +10,9 @@ use rinflow_input::{
     CaptureCommand, CaptureEvent, ClipboardCommand, ClipboardEvent, ClipboardLink, EisSource,
     EmulationEvent,
 };
+use std::cell::Cell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::{Duration, Instant};
@@ -43,6 +45,9 @@ async fn detect_desktop(bus: Option<&zbus::Connection>) -> Desktop {
 struct Capture {
     commands: mpsc::UnboundedSender<CaptureCommand>,
     task: JoinHandle<()>,
+    /// Cleared when this backend is stopped: what it reports while it
+    /// closes its session must not be taken for its successor's events.
+    current: Rc<Cell<bool>>,
 }
 
 struct Emulation {
@@ -225,13 +230,21 @@ impl Backends {
     }
 
     /// The user asks again (after declining, or when nothing came up).
+    /// Only a backend that is not working is started again: a capture
+    /// session that works is not thrown away for the emulation's sake (on
+    /// GNOME before 51 that would ask the user once more).
     pub fn retry(&mut self) {
-        self.stop_capture();
-        self.stop_emulation();
-        self.capture_retry.now();
-        self.emulation_retry.now();
-        self.state.set_capture(waiting());
-        self.state.set_emulation(waiting());
+        let input = self.state.snapshot().input;
+        if input.capture.state != BackendState::Ready {
+            self.stop_capture();
+            self.capture_retry.now();
+            self.state.set_capture(waiting());
+        }
+        if input.emulation.state != BackendState::Ready {
+            self.stop_emulation();
+            self.emulation_retry.now();
+            self.state.set_emulation(waiting());
+        }
     }
 
     pub fn on_capture_event(&mut self, event: &CaptureEvent) {
@@ -311,19 +324,36 @@ impl Backends {
 
     fn start_capture(&mut self) {
         let (commands, receiver) = mpsc::unbounded_channel();
-        let events = self.capture_events.clone();
+        let (events, mut own_events) = mpsc::unbounded_channel();
+        let current = Rc::new(Cell::new(true));
+        {
+            let current = current.clone();
+            let out = self.capture_events.clone();
+            tokio::task::spawn_local(async move {
+                while let Some(event) = own_events.recv().await {
+                    if current.get() {
+                        let _ = out.send(event);
+                    }
+                }
+            });
+        }
         let directory = self.state_directory.clone();
         let task = tokio::task::spawn_local(async move {
             rinflow_input::portal_capture::run(&directory, receiver, events).await;
         });
-        self.capture = Some(Capture { commands, task });
+        self.capture = Some(Capture { commands, task, current });
         self.state.set_capture(BackendView::new(BackendState::Waiting, "portal", msg("Connecting to the desktop's input capture portal…")));
     }
 
+    /// Asks the backend to close its portal session, and aborts it only if
+    /// it does not finish in time (stuck at a permission dialog, say).
+    /// Aborting straight away left the session open in the portal: ashpd's
+    /// `Session` does not close on drop, and the bus connection is shared.
     fn stop_capture(&mut self) {
         if let Some(capture) = self.capture.take() {
+            capture.current.set(false);
             let _ = capture.commands.send(CaptureCommand::Shutdown);
-            capture.task.abort();
+            finish_or_abort(capture.task, Duration::from_secs(2));
         }
     }
 
@@ -357,11 +387,10 @@ impl Backends {
             if let Some(shutdown) = emulation.shutdown.take() {
                 let _ = shutdown.send(());
             }
-            // Give it a moment to release held keys; then it is gone.
-            let task = emulation.task;
-            tokio::task::spawn_local(async move {
-                let _ = tokio::time::timeout(Duration::from_millis(500), task).await;
-            });
+            // Give it a moment to release held keys; then it is gone, so it
+            // does not run on beside its successor (both would use the
+            // single-use restore token).
+            finish_or_abort(emulation.task, Duration::from_millis(500));
         }
     }
 
@@ -388,6 +417,17 @@ impl Backends {
             }
         }
     }
+}
+
+/// Lets a backend task that was told to stop finish on its own, and aborts
+/// it if it has not within `grace`.
+fn finish_or_abort(mut task: JoinHandle<()>, grace: Duration) {
+    tokio::task::spawn_local(async move {
+        if tokio::time::timeout(grace, &mut task).await.is_err() {
+            log::warn!("a backend did not stop within {grace:?}; aborted");
+            task.abort();
+        }
+    });
 }
 
 fn waiting() -> BackendView {

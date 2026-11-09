@@ -109,11 +109,35 @@ pub async fn run(
                 }
                 Some(CaptureCommand::Release { x, y }) => {
                     let Some(id) = activation.take() else { continue };
-                    let options = ashpd::desktop::input_capture::ReleaseOptions::default()
-                        .set_activation_id(id)
-                        .set_cursor_position(Some((x, y)));
-                    if let Err(error) = portal.release(&session, options).await {
-                        log::warn!("Release: {error}");
+                    if let Err(error) = give_back(&portal, &session, &mut armed, &zones, &barriers, id, Some((x, y))).await {
+                        report(CaptureEvent::Lost(error));
+                        break;
+                    }
+                }
+                Some(CaptureCommand::Escape) => {
+                    let result = match activation.take() {
+                        Some(id) => {
+                            log::info!("escape: releasing the capture");
+                            give_back(&portal, &session, &mut armed, &zones, &barriers, id, None).await
+                        }
+                        None => {
+                            // No capture known here, yet the user is stuck:
+                            // disabling the session ends whatever the
+                            // compositor still holds.
+                            log::info!("escape: no capture known, disabling and enabling the session");
+                            armed.enabled = false;
+                            match portal.disable(&session, Default::default()).await {
+                                Ok(()) => armed.apply(&portal, &session, &zones, &barriers).await.map_err(|error| format!("Enable after escape: {error}")),
+                                Err(error) => Err(format!("Disable on escape: {error}")),
+                            }
+                        }
+                    };
+                    // Whatever was held is over, whether or not the
+                    // compositor sends Deactivated.
+                    report(CaptureEvent::Deactivated);
+                    if let Err(error) = result {
+                        report(CaptureEvent::Lost(error));
+                        break;
                     }
                 }
                 Some(CaptureCommand::Shutdown) | None => break,
@@ -124,17 +148,23 @@ pub async fn run(
                     break;
                 };
                 let Some((barrier, x, y)) = which_barrier(&signal, &barriers) else {
-                    log::warn!("activated without a cursor position: {signal:?}");
+                    // The position is optional in the specification. Without
+                    // it the agent cannot tell where the pointer left, so it
+                    // goes straight back rather than staying captured with
+                    // nobody driving.
+                    log::warn!("activated without a cursor position, released: {signal:?}");
+                    if let Err(error) = give_back(&portal, &session, &mut armed, &zones, &barriers, signal.activation_id(), None).await {
+                        report(CaptureEvent::Lost(error));
+                        break;
+                    }
                     continue;
                 };
                 let Some(barrier) = barrier else {
                     // On the edge, but not where a peer sits: straight back.
                     let (x, y) = nudged_inward(&barriers, x, y);
-                    let options = ashpd::desktop::input_capture::ReleaseOptions::default()
-                        .set_activation_id(signal.activation_id())
-                        .set_cursor_position(Some((x, y)));
-                    if let Err(error) = portal.release(&session, options).await {
-                        log::warn!("Release: {error}");
+                    if let Err(error) = give_back(&portal, &session, &mut armed, &zones, &barriers, signal.activation_id(), Some((x, y))).await {
+                        report(CaptureEvent::Lost(error));
+                        break;
                     }
                     continue;
                 };
@@ -157,8 +187,12 @@ pub async fn run(
                     break;
                 }
                 // The compositor suspended the session (barriers changed,
-                // a display came or went): the same session goes on.
-                activation = None;
+                // a display came or went): the same session goes on. A
+                // capture in progress ended with it; the agent is told even
+                // if no Deactivated comes, so nothing it drove stays held.
+                if activation.take().is_some() {
+                    report(CaptureEvent::Deactivated);
+                }
                 armed.enabled = false;
                 if let Err(error) = armed.apply(&portal, &session, &zones, &barriers).await {
                     report(CaptureEvent::Lost(format!("Enable after Disabled: {error}")));
@@ -342,6 +376,37 @@ impl Armed {
         self.enabled = true;
         Ok(())
     }
+}
+
+/// Hands a captured pointer back to the desktop, at `position` when given.
+/// If the compositor refuses the release, the session is disabled (which
+/// ends any capture) and enabled again, so the pointer is never left
+/// captured with nobody driving. `Err` only when even that fails.
+async fn give_back(
+    portal: &InputCapture,
+    session: &Session<InputCapture>,
+    armed: &mut Armed,
+    zones: &Zones,
+    barriers: &[Barrier],
+    activation_id: Option<u32>,
+    position: Option<(f64, f64)>,
+) -> Result<(), String> {
+    let options = ashpd::desktop::input_capture::ReleaseOptions::default()
+        .set_activation_id(activation_id)
+        .set_cursor_position(position);
+    let Err(error) = portal.release(session, options).await else {
+        return Ok(());
+    };
+    log::warn!("Release: {error}; disabling the session to give the pointer back");
+    armed.enabled = false;
+    portal
+        .disable(session, Default::default())
+        .await
+        .map_err(|error| format!("Disable after a failed release: {error}"))?;
+    armed
+        .apply(portal, session, zones, barriers)
+        .await
+        .map_err(|error| format!("Enable after a failed release: {error}"))
 }
 
 /// Sets the barriers on a disabled session and enables it.

@@ -56,6 +56,11 @@ pub enum CaptureCommand {
     /// Give the pointer back to this desktop at this logical point; the
     /// capture ends.
     Release { x: f64, y: f64 },
+    /// Give the pointer back whatever state the capture is in (the user's
+    /// Ctrl+Alt+Esc while nothing is being driven): released if captured,
+    /// and the session disabled and enabled again either way, which makes
+    /// the compositor let go of anything it still holds.
+    Escape,
     Shutdown,
 }
 

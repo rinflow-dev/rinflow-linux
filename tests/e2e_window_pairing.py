@@ -136,6 +136,21 @@ if __name__ == "__main__":
     window = subprocess.Popen([WINDOW], env=env)
     try:
         step("the pairing asks in a dialog", shows(dialog_shown, 30))
+        # Accept is held back for a moment after the code appears. Checked
+        # by its state: AT-SPI's action presses an insensitive button
+        # anyway, which no pointer or key can. GTK 4 shows an insensitive
+        # button as not ENABLED.
+        def accept_enabled():
+            node = button("Accept")
+            if node is None:
+                return None
+            node.clear_cache()
+            return node.get_state_set().contains(Atspi.StateType.ENABLED)
+        step("Accept is not enabled right away", accept_enabled() is False)
+        # That it is enabled after PAIRING_ACCEPT_DELAY is not checked here:
+        # GTK 4 does not pass the change back to AT-SPI (the button itself
+        # is sensitive again; checked by hand). Pressed through AT-SPI below.
+        time.sleep(1.6)
         step("Accept can be pressed", press("Accept"))
         time.sleep(0.5)
         # The agent keeps sending snapshots with the pairing (accepted) in it.
@@ -160,6 +175,18 @@ if __name__ == "__main__":
         step("... and declines it", len(rejected) == 1, str(rejected))
         step("nothing comes back after Reject", not shows(lambda shown: dialog_shown(shown) or banner_shown(shown), 2))
         step("the window is still running", window.poll() is None)
+
+        # Another device's ID and name are its own choice: a quote in the ID
+        # made GLib abort while building the device's menu (on every start,
+        # as the device stays remembered), and markup in the name blanked or
+        # styled its row.
+        hostile = "Tom & <b>Jerry</b>"
+        fake.state["layout"] = {"displays": fake.state["layout"]["displays"], "devices": [
+            {"peer_id": "it's|me", "name": hostile, "platform": "linux", "displays": [], "offset": None,
+             "side": None, "remembered": True, "last_seen_ms": None}]}
+        fake.send(dict(fake.state, type="state"))
+        step("a device ID with a quote doesn't stop the window", shows(lambda shown: hostile in shown)
+             and window.poll() is None)
     finally:
         fake.send(dict(fake.state, type="state", quitting=True))
         try:

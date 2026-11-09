@@ -29,7 +29,7 @@ fn main() {
     }
 
     let mut xml = String::from(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gresources>\n  <gresource prefix=\"/com/rinflow/linux\">\n",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gresources>\n  <gresource prefix=\"/com/rinflow/rinflow\">\n",
     );
     for file in &ui_files {
         xml.push_str(&format!(
@@ -37,10 +37,10 @@ fn main() {
         ));
     }
     xml.push_str("    <file compressed=\"true\">style.css</file>\n");
-    xml.push_str("  </gresource>\n  <gresource prefix=\"/com/rinflow/linux/icons/scalable/apps\">\n");
-    xml.push_str("    <file preprocess=\"xml-stripblanks\" alias=\"com.rinflow.linux.svg\">icons/com.rinflow.linux.svg</file>\n");
-    xml.push_str("  </gresource>\n  <gresource prefix=\"/com/rinflow/linux/icons/scalable/actions\">\n");
-    xml.push_str("    <file preprocess=\"xml-stripblanks\" alias=\"com.rinflow.linux-symbolic.svg\">icons/com.rinflow.linux-symbolic.svg</file>\n");
+    xml.push_str("  </gresource>\n  <gresource prefix=\"/com/rinflow/rinflow/icons/scalable/apps\">\n");
+    xml.push_str("    <file preprocess=\"xml-stripblanks\" alias=\"com.rinflow.rinflow.svg\">icons/com.rinflow.rinflow.svg</file>\n");
+    xml.push_str("  </gresource>\n  <gresource prefix=\"/com/rinflow/rinflow/icons/scalable/actions\">\n");
+    xml.push_str("    <file preprocess=\"xml-stripblanks\" alias=\"com.rinflow.rinflow-symbolic.svg\">icons/com.rinflow.rinflow-symbolic.svg</file>\n");
     xml.push_str("  </gresource>\n");
     // The Adwaita symbolic icons the window uses (see data/icons/README.md),
     // one GResource prefix per icon context.
@@ -60,7 +60,7 @@ fn main() {
             continue;
         }
         xml.push_str(&format!(
-            "  <gresource prefix=\"/com/rinflow/linux/icons/scalable/{context}\">\n"
+            "  <gresource prefix=\"/com/rinflow/rinflow/icons/scalable/{context}\">\n"
         ));
         for name in names {
             xml.push_str(&format!(

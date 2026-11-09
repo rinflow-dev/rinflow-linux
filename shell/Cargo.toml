@@ -3,6 +3,7 @@ name = "rinflow-shell"
 description = "What the Linux agent and window share: state snapshot, IPC protocol, saved settings, trust, identity and arrangement"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 

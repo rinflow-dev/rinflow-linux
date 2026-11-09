@@ -3,6 +3,7 @@ name = "rinflow-agent"
 description = "Rinflow's Linux agent: runs the core, captures and plays input, serves the window over a local socket"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 

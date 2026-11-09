@@ -309,6 +309,14 @@ impl SharedState {
                 let Some(peer_id) = event["peer_id"].as_str() else {
                     return false;
                 };
+                // One pairing at a time: another device asking while one is
+                // pending must not take the place of the one the user is
+                // checking (it could carry the same name). Its request times
+                // out in the core; it can ask again once this one is over.
+                if snapshot.pairing.as_ref().is_some_and(|pending| pending.peer_id != peer_id) {
+                    log::info!("pairing request from {peer_id} ignored: another one is pending");
+                    return false;
+                }
                 let text = |key: &str| event[key].as_str().unwrap_or_default().to_owned();
                 snapshot.pairing = Some(PairingView {
                     peer_id: peer_id.to_owned(),
@@ -592,5 +600,20 @@ mod tests {
         let snapshot = state.snapshot();
         assert!(snapshot.pairing.is_none());
         assert_eq!(snapshot.paired_peers, vec!["pc".to_owned()]);
+    }
+
+    #[test]
+    fn another_device_cannot_take_the_place_of_a_pending_pairing() {
+        let state = state();
+        let request = |peer: &str, code: &str| {
+            serde_json::json!({"event": "pairing_requested", "peer_id": peer, "name": "PC", "platform": "windows", "code": code})
+        };
+        apply(&state, request("pc", "482917"));
+        apply(&state, request("impostor", "111111"));
+        let pairing = state.snapshot().pairing.unwrap();
+        assert_eq!((pairing.peer_id.as_str(), pairing.code.as_str()), ("pc", "482917"));
+        // The same device with a new code still replaces its own request.
+        apply(&state, request("pc", "222333"));
+        assert_eq!(state.snapshot().pairing.unwrap().code, "222333");
     }
 }

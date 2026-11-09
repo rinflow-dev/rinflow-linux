@@ -1,6 +1,6 @@
 # Icons
 
-`com.rinflow.linux.svg` and `com.rinflow.linux-symbolic.svg` are the
+`com.rinflow.rinflow.svg` and `com.rinflow.rinflow-symbolic.svg` are the
 application's own icons, installed to `hicolor/scalable/apps` and
 `hicolor/symbolic/apps`. Both are drawn from the Rinflow mark
 (`docs/logo/rinflow-light.svg` for light backgrounds, `rinflow-dark.svg`

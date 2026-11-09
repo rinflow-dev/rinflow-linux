@@ -326,8 +326,13 @@ pub fn keep_language_list(list: Option<String>) {
     let _ = LANGUAGE_LIST.set(list);
 }
 
+/// The systemd user unit installed with the agent.
+const AGENT_UNIT: &str = "rinflow-agent.service";
+
 /// Starts the agent next to this binary (or from `PATH`), detached, so it
-/// outlives the window.
+/// outlives the window. When the user service runs that same program, it
+/// is started through systemd instead: an agent started here would beat
+/// systemd's restart after a crash, and live outside the service.
 fn spawn_agent() -> std::io::Result<()> {
     use std::os::unix::process::CommandExt;
     let beside = std::env::current_exe()
@@ -335,6 +340,9 @@ fn spawn_agent() -> std::io::Result<()> {
         .and_then(|exe| exe.parent().map(|dir| dir.join("rinflow-agent")))
         .filter(|path| path.is_file());
     let program = beside.unwrap_or_else(|| PathBuf::from("rinflow-agent"));
+    if start_through_systemd(&program) {
+        return Ok(());
+    }
     let mut command = std::process::Command::new(program);
     match LANGUAGE_LIST.get().cloned().flatten() {
         Some(list) => command.env("LANGUAGE", list),
@@ -346,5 +354,53 @@ fn spawn_agent() -> std::io::Result<()> {
         .stderr(std::process::Stdio::null())
         .process_group(0)
         .spawn()
-        .map(|_| ())
+        .map(|mut child| {
+            // Reaped when it exits, so it does not linger as a zombie under
+            // a window that stays open.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        })
+}
+
+/// Starts the user service if it is installed and runs `program` (a build
+/// started from a source tree runs its own agent instead). False when it
+/// is not, or systemd is not there (Flatpak, no user manager).
+fn start_through_systemd(program: &std::path::Path) -> bool {
+    let systemctl = |args: &[&str]| {
+        std::process::Command::new("systemctl")
+            .arg("--user")
+            .args(args)
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+    };
+    // `{ path=/usr/bin/rinflow-agent ; argv[]=… }`, or empty when the unit
+    // is not installed.
+    let Some(show) = systemctl(&["show", "--property=ExecStart", "--value", AGENT_UNIT]) else {
+        return false;
+    };
+    let show = String::from_utf8_lossy(&show.stdout);
+    let Some(unit_program) = show
+        .split("path=")
+        .nth(1)
+        .and_then(|rest| rest.split(" ;").next())
+        .map(|path| PathBuf::from(path.trim()))
+    else {
+        return false;
+    };
+    let same = |a: &std::path::Path, b: &std::path::Path| match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    };
+    if !same(&unit_program, program) {
+        return false;
+    }
+    let started = systemctl(&["start", "--no-block", AGENT_UNIT]).is_some();
+    if started {
+        log::info!("started {AGENT_UNIT}");
+    }
+    started
 }

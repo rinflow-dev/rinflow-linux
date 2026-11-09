@@ -123,8 +123,8 @@ libadwaita), from the workspace root, offline:
 
 ```sh
 flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50 org.freedesktop.Sdk.Extension.rust-stable//25.08
-flatpak-builder --user --install --force-clean build-dir rinflow-linux/build-aux/com.rinflow.linux.yml
-flatpak run com.rinflow.linux
+flatpak-builder --user --install --force-clean build-dir rinflow-linux/build-aux/com.rinflow.rinflow.yml
+flatpak run com.rinflow.rinflow
 ```
 
 `build-aux/cargo-sources.json` pins every crate; regenerate it after
@@ -205,10 +205,17 @@ The design is one systemd user service for the whole login, so that switching th
 | Device ID, identity certificate, paired devices, layout, settings | `~/.local/share/rinflow/` |
 | Portal restore tokens, last known displays | `~/.local/state/rinflow/` |
 | The window's socket | `$XDG_RUNTIME_DIR/rinflow/agent.sock` |
-| Start at login | `~/.config/autostart/com.rinflow.linux.agent.desktop` (outside Flatpak) |
+| Start at login | `~/.config/autostart/com.rinflow.rinflow.agent.desktop` (outside Flatpak) |
 
 ## Not in this version
 
 Files (copy and paste of files), X11 and wlroots backends, the tray icon, the Decky
 plugin for Gaming Mode, Hyprland through its portal (it leaks file
 descriptors per session in released versions).
+
+## License
+
+GPL-3.0-or-later; the full text is in [LICENSE](LICENSE). The symbolic
+icons under `data/icons/scalable/` come from the GNOME Adwaita icon theme
+(CC BY-SA 3.0 / LGPL 3), see [data/icons/README.md](data/icons/README.md).
+`rinflow-core` is under its own license (MPL-2.0).

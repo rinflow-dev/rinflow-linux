@@ -16,7 +16,7 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/com/rinflow/linux/ui/window.ui")]
+    #[template(resource = "/com/rinflow/rinflow/ui/window.ui")]
     pub struct RinflowWindow {
         #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
@@ -110,7 +110,7 @@ mod imp {
             });
             klass.install_action("win.place", Some(&String::static_variant_type()), |window, _, parameter| {
                 if let Some(value) = parameter.and_then(|p| p.get::<String>())
-                    && let Some((peer, side)) = value.split_once('|')
+                    && let Some((peer, side)) = value.rsplit_once('|')
                 {
                     window.imp().client.place_beside(peer, side);
                 }
@@ -153,6 +153,18 @@ glib::wrapper! {
 }
 
 const THEMES: [&str; 3] = ["system", "light", "dark"];
+
+/// How long the pairing code is shown before Accept can be pressed.
+const PAIRING_ACCEPT_DELAY: std::time::Duration = std::time::Duration::from_millis(1500);
+
+/// A menu item whose action gets `target` as a typed string. Never build a
+/// detailed action string (`win.x('…')`) from another device's ID: a quote
+/// in it makes GLib's parser abort the process.
+fn menu_item(label: &str, action: &str, target: &str) -> gio::MenuItem {
+    let item = gio::MenuItem::new(Some(label), None);
+    item.set_action_and_target_value(Some(action), Some(&target.to_variant()));
+    item
+}
 
 /// The properties of the template's objects that hold text for the user.
 const TEXT_PROPERTIES: [&str; 6] = ["title", "subtitle", "description", "label", "tooltip-text", "button-label"];
@@ -513,7 +525,10 @@ impl RinflowWindow {
             let online = snapshot.peers.iter().any(|p| p.id == device.peer_id);
             let paired = snapshot.paired_peers.contains(&device.peer_id);
             let driving = snapshot.driving.as_deref() == Some(device.peer_id.as_str());
-            let row = adw::ActionRow::builder().title(&device.name).build();
+            // Names and addresses come from other devices: plain text, never
+            // Pango markup (a `&` or `<` in a name would blank the row, or
+            // style it as the sender likes).
+            let row = adw::ActionRow::builder().title(&device.name).use_markup(false).build();
             row.add_prefix(&gtk::Image::from_icon_name(platform_icon(&device.platform)));
             let mut subtitle = match (session, online) {
                 (Some(s), _) if s.status == rinflow_shell::state::SessionStatus::Connected => {
@@ -570,17 +585,14 @@ impl RinflowWindow {
                 ("top", tr("Place above")),
                 ("bottom", tr("Place below")),
             ] {
-                place.append(
-                    Some(&label),
-                    Some(&format!("win.place('{}|{}')", device.peer_id, side)),
-                );
+                place.append_item(&menu_item(&label, "win.place", &format!("{}|{}", device.peer_id, side)));
             }
             menu.append_section(None, &place);
             let more = gio::Menu::new();
             if device.offset.is_some() {
-                more.append(Some(&tr("Remove placement")), Some(&format!("win.unplace('{}')", device.peer_id)));
+                more.append_item(&menu_item(&tr("Remove placement"), "win.unplace", &device.peer_id));
             }
-            more.append(Some(&tr("Forget this device")), Some(&format!("win.forget('{}')", device.peer_id)));
+            more.append_item(&menu_item(&tr("Forget this device"), "win.forget", &device.peer_id));
             menu.append_section(None, &more);
             let menu_button = gtk::MenuButton::builder()
                 .icon_name("view-more-symbolic")
@@ -613,6 +625,7 @@ impl RinflowWindow {
             let row = adw::ActionRow::builder()
                 .title(&peer.name)
                 .subtitle(format!("{} · {}", platform_name(&peer.platform), peer.address))
+                .use_markup(false)
                 .build();
             row.add_prefix(&gtk::Image::from_icon_name(platform_icon(&peer.platform)));
             let connecting = snapshot.sessions.iter().any(|s| s.peer_id == peer.id);
@@ -639,6 +652,7 @@ impl RinflowWindow {
             let row = adw::ActionRow::builder()
                 .title(text)
                 .subtitle(format!("{} · {status}", tr("Added by address")))
+                .use_markup(false)
                 .build();
             row.add_prefix(&gtk::Image::from_icon_name("network-wired-symbolic"));
             let remove = gtk::Button::builder()
@@ -715,8 +729,8 @@ impl RinflowWindow {
             // Translators: {name} is the other device's name.
             .heading(trf("Pair with {name}", &[("name", &pairing.name)]))
             .body(tr("Check that the other device shows the same six digits, then accept on both."))
+            // No default response: Enter must not accept a security prompt.
             .close_response("reject")
-            .default_response("accept")
             .build();
         let label = gtk::Label::builder()
             .label(&code)
@@ -730,6 +744,21 @@ impl RinflowWindow {
         dialog.set_response_appearance("reject", adw::ResponseAppearance::Destructive);
         dialog.add_response("accept", &tr("Accept"));
         dialog.set_response_appearance("accept", adw::ResponseAppearance::Suggested);
+        // Accept is offered only once the code has been on screen for a
+        // moment, so a click aimed at something else cannot land on it.
+        // The time counts from when the dialog is on screen, not from when
+        // it was made (the window may not be shown yet).
+        dialog.set_response_enabled("accept", false);
+        dialog.connect_map(|dialog| {
+            glib::timeout_add_local_once(
+                PAIRING_ACCEPT_DELAY,
+                glib::clone!(
+                    #[weak]
+                    dialog,
+                    move || dialog.set_response_enabled("accept", true)
+                ),
+            );
+        });
         dialog.connect_response(
             None,
             glib::clone!(

@@ -47,6 +47,10 @@ pub struct Driver {
     /// An edge hit while a peer drove this device was released; when the
     /// compositor confirms, the peer's entry move is played again.
     replay_after_release: bool,
+    /// Keys the capture hands over while nothing is driven. That should not
+    /// happen; when it does the pointer is stuck in the capture, and these
+    /// let Ctrl+Alt+Esc get it back all the same.
+    stray_keys: HashSet<u32>,
 }
 
 struct Driving {
@@ -79,6 +83,7 @@ impl Driver {
             current: None,
             last_remote_input,
             replay_after_release: false,
+            stray_keys: HashSet::new(),
         }
     }
 
@@ -190,6 +195,7 @@ impl Driver {
             CaptureEvent::Scroll { dx, dy, precise } => self.scroll(dx, dy, precise),
             CaptureEvent::Key { usage, down } => self.key(usage, down),
             CaptureEvent::Deactivated | CaptureEvent::Lost(_) | CaptureEvent::Denied(_) => {
+                self.stray_keys.clear();
                 if self.current.is_some() {
                     self.end(None);
                 }
@@ -273,6 +279,7 @@ impl Driver {
         }
         let (arrival_x, arrival_y) = pointer.position();
         log::info!("driving {peer_id} from ({left_x:.0}, {left_y:.0}), arriving at ({arrival_x:.0}, {arrival_y:.0})");
+        self.stray_keys.clear();
         self.current = Some(Driving {
             input: self.settings.get().input_for(&peer_id),
             peer_id: peer_id.clone(),
@@ -383,7 +390,10 @@ impl Driver {
     }
 
     fn key(&mut self, usage: u32, down: bool) {
-        let Some(driving) = &mut self.current else { return };
+        let Some(driving) = &mut self.current else {
+            self.stray_key(usage, down);
+            return;
+        };
         if down {
             // Ctrl+Alt+Esc brings the pointer home whatever the peer does.
             if usage == USAGE_ESCAPE
@@ -412,6 +422,28 @@ impl Driver {
             ..LcInputEvent::default()
         };
         self.send(event);
+    }
+
+    /// A captured key while nothing is driven: only Ctrl+Alt+Esc means
+    /// anything, and it makes the capture let go whatever its state.
+    fn stray_key(&mut self, usage: u32, down: bool) {
+        if !down {
+            self.stray_keys.remove(&usage);
+            return;
+        }
+        let held = |keys: &HashSet<u32>, left: u32, right: u32| keys.contains(&left) || keys.contains(&right);
+        if usage == USAGE_ESCAPE
+            && held(&self.stray_keys, 0xE0, 0xE4)
+            && held(&self.stray_keys, 0xE2, 0xE6)
+        {
+            log::warn!("Ctrl+Alt+Esc while nothing is driven: telling the capture to let go");
+            self.stray_keys.clear();
+            if let Some(capture) = &self.capture {
+                let _ = capture.send(CaptureCommand::Escape);
+            }
+            return;
+        }
+        self.stray_keys.insert(usage);
     }
 
     /// Hands the pointer back to this desktop at `home`, or just stops

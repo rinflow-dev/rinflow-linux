@@ -5,6 +5,8 @@ members = ["agent", "input", "shell", "app", "tests/fakedesk"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+# File::try_lock (the agent's single-instance lock).
+rust-version = "1.89"
 license = "GPL-3.0-or-later"
 publish = false
 

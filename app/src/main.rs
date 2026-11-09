@@ -9,7 +9,7 @@ use adw::prelude::*;
 use gtk::{gio, glib};
 use std::path::PathBuf;
 
-pub const APP_ID: &str = "com.rinflow.linux";
+pub const APP_ID: &str = "com.rinflow.rinflow";
 use rinflow_shell::i18n::{self, tr};
 
 fn main() -> glib::ExitCode {
@@ -46,7 +46,7 @@ fn main() -> glib::ExitCode {
 
     let app = adw::Application::builder()
         .application_id(APP_ID)
-        .resource_base_path("/com/rinflow/linux")
+        .resource_base_path("/com/rinflow/rinflow")
         .build();
     let theme = settings.theme.clone();
     app.connect_startup(move |app| {
@@ -57,9 +57,9 @@ fn main() -> glib::ExitCode {
             _ => adw::ColorScheme::Default,
         });
         if let Some(display) = gtk::gdk::Display::default() {
-            gtk::IconTheme::for_display(&display).add_resource_path("/com/rinflow/linux/icons");
+            gtk::IconTheme::for_display(&display).add_resource_path("/com/rinflow/rinflow/icons");
             let css = gtk::CssProvider::new();
-            css.load_from_resource("/com/rinflow/linux/style.css");
+            css.load_from_resource("/com/rinflow/rinflow/style.css");
             gtk::style_context_add_provider_for_display(
                 &display,
                 &css,

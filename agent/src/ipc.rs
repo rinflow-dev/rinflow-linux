@@ -12,12 +12,29 @@ use std::rc::Rc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 
-/// Binds the socket. If another agent answers on it, this one must not
-/// start: `Err(AlreadyExists)`.
-pub async fn listen(path: &Path) -> io::Result<UnixListener> {
+/// Binds the socket. If another agent runs (or is starting), this one must
+/// not start: `Err(AlreadyExists)`. The returned file holds the agent's
+/// lock and must be kept open for as long as the agent runs.
+///
+/// The lock comes first: without it two agents starting together (the
+/// user service and the window, say) both found no one answering, and the
+/// second removed the first's socket, leaving an agent nobody could reach.
+pub async fn listen(path: &Path) -> io::Result<(UnixListener, std::fs::File)> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
         set_private(parent);
+    }
+    let lock = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path.with_extension("lock"))?;
+    match lock.try_lock() {
+        Ok(()) => {}
+        Err(std::fs::TryLockError::WouldBlock) => {
+            return Err(io::Error::new(io::ErrorKind::AlreadyExists, "another agent is running"));
+        }
+        Err(std::fs::TryLockError::Error(error)) => return Err(error),
     }
     if UnixStream::connect(path).await.is_ok() {
         return Err(io::Error::new(
@@ -29,7 +46,7 @@ pub async fn listen(path: &Path) -> io::Result<UnixListener> {
     let _ = std::fs::remove_file(path);
     let listener = UnixListener::bind(path)?;
     set_private(path);
-    Ok(listener)
+    Ok((listener, lock))
 }
 
 fn set_private(path: &Path) {
