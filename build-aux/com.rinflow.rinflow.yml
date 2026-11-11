@@ -20,6 +20,9 @@ finish-args:
   - --share=network
   # The window finds the agent's socket in the runtime directory.
   - --filesystem=xdg-run/rinflow:create
+  # A pairing request or received files while no window is open
+  # (agent/src/notify.rs).
+  - --talk-name=org.freedesktop.Notifications
   # The tray icon (agent/src/tray.rs).
   - --talk-name=org.kde.StatusNotifierWatcher
   # Files copied on other devices arrive here (agent/src/paths.rs). Files

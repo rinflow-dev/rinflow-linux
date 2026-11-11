@@ -860,6 +860,9 @@ impl RinflowWindow {
             }
         ));
         dialog.present(Some(self));
+        // The agent sends no notification while a window is open, so a
+        // window behind others comes forward (as far as the desktop lets it).
+        self.present();
         *imp.pairing_dialog.borrow_mut() = Some((key, dialog));
     }
 

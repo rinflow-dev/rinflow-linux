@@ -9,6 +9,7 @@ mod desktop;
 mod displays;
 mod driver;
 mod ipc;
+mod notify;
 mod paths;
 mod power;
 mod services;
@@ -159,7 +160,9 @@ async fn run() -> i32 {
         settings: settings.clone(),
         arrangement: arrangement.clone(),
         commands: commands_tx,
+        windows: tokio::sync::watch::Sender::new(0),
     });
+    let (notices_tx, notices) = mpsc::unbounded_channel::<notify::Notice>();
     tokio::task::spawn_local(ipc::serve(listener, services.clone()));
     // The tray's labels are the only text the agent shows by itself.
     let environment = |name: &str| std::env::var(name).ok().filter(|value| !value.is_empty());
@@ -168,7 +171,8 @@ async fn run() -> i32 {
         rinflow_shell::i18n::locale_directory(),
         rinflow_shell::i18n::system_languages(messages_locale.as_deref(), environment("LANGUAGE").as_deref()),
     );
-    tray::spawn(services);
+    tray::spawn(services.clone());
+    notify::spawn(services, notices);
     power::spawn(Arc::downgrade(&core));
 
     let (capture_events_tx, mut capture_events) = mpsc::unbounded_channel::<CaptureEvent>();
@@ -217,6 +221,13 @@ async fn run() -> i32 {
                 driver.core_event(&event);
                 if event["event"] == "clipboard" {
                     received_clipboard(&event, &settings, &core, &backends);
+                }
+                if event["event"] == "files_received" {
+                    let paths = event["paths"]
+                        .as_array()
+                        .map(|paths| paths.iter().filter_map(|path| path.as_str()).map(std::path::PathBuf::from).collect())
+                        .unwrap_or_default();
+                    let _ = notices_tx.send(notify::Notice::FilesReceived { paths });
                 }
                 if event["event"] == "files_offered" {
                     files_offered(&event, &settings, &core, &state);

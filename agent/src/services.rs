@@ -31,6 +31,8 @@ pub struct Services {
     pub settings: Arc<SettingsStore>,
     pub arrangement: Arc<Arrangement>,
     pub commands: mpsc::UnboundedSender<AgentCommand>,
+    /// How many windows are connected (clients that said so in `hello`).
+    pub windows: tokio::sync::watch::Sender<usize>,
 }
 
 impl Services {

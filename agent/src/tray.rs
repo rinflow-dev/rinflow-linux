@@ -197,7 +197,7 @@ pub fn spawn(services: Rc<Services>) {
                         services.state.set_locked(Some(on));
                         let _ = services.commands.send(AgentCommand::LockChanged);
                     }
-                    Some(Action::OpenWindow) => open_window(),
+                    Some(Action::OpenWindow) => open_window(None),
                     Some(Action::Quit) => {
                         let _ = services.commands.send(AgentCommand::Quit);
                     }
@@ -209,14 +209,24 @@ pub fn spawn(services: Rc<Services>) {
 }
 
 /// Starts the window (or brings the running one forward: it is a single
-/// instance application).
-fn open_window() {
+/// instance application). `activation` is the token a notification's
+/// click came with, which lets the window take the focus on Wayland.
+/// `RINFLOW_WINDOW` names another program to start (the tests' stand-in).
+pub fn open_window(activation: Option<String>) {
     let beside = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|directory| directory.join("rinflow")))
         .filter(|path| path.is_file());
-    let program = beside.unwrap_or_else(|| "rinflow".into());
-    match std::process::Command::new(&program)
+    let program = std::env::var_os("RINFLOW_WINDOW")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .or(beside)
+        .unwrap_or_else(|| "rinflow".into());
+    let mut command = std::process::Command::new(&program);
+    if let Some(token) = activation {
+        command.env("XDG_ACTIVATION_TOKEN", token);
+    }
+    match command
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

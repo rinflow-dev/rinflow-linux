@@ -111,6 +111,7 @@ make e2e-controlled  # a real desktop (Mutter or KWin, RINFLOW_TEST_DESKTOP) as 
 # The tests use their own ports and directories, so they run beside an installed Rinflow; only `make e2e`
 # checks the default port 42421 and needs it free.
 make e2e-tray     # the tray icon against a stand-in StatusNotifierWatcher: menu read and pressed over D-Bus
+make e2e-notify   # notifications against a stand-in notification service: a pairing request announced, opened, declined, withdrawn
 make e2e-i18n     # the agent's text goes out untranslated; the language setting (no display needed)
 make e2e-window-i18n  # the window switching language live, under Xvfb (AT-SPI)
 make e2e-canvas   # dragging in the arrangement: click, strip, unplace, Escape, magnet and previews (Xvfb, XTest)
@@ -254,6 +255,20 @@ A StatusNotifierItem from the agent (no toolkit): what is going on, pause
 sharing, keep the pointer here, open the window, quit. Plasma, Steam Deck's
 Desktop Mode, Cinnamon and Xfce show it; GNOME does with the AppIndicator
 extension (`gnome-extensions enable ubuntu-appindicators@ubuntu.com`).
+
+## Notifications
+
+While no window is open the agent says what needs the user with a desktop
+notification (`org.freedesktop.Notifications`, under Rinflow's desktop
+entry, so the desktop's settings can silence it):
+
+| | |
+| --- | --- |
+| A device asks to pair | Click to open the window and compare the code, or **Reject**. It cannot be accepted from the notification, and the code is not shown there. Withdrawn when the pairing is over or a window opens; the same device asking again within 30 seconds is not announced twice. |
+| Files arrived | Where they are, and **Open Folder**. |
+
+A window that is open asks by itself (and comes forward), so nothing is
+announced twice.
 
 ## Not in this version
 

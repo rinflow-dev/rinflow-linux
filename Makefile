@@ -25,7 +25,7 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-tray e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall locale pot check
+.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall locale pot check
 
 # `make` alone runs the window; `make all` only builds.
 .DEFAULT_GOAL := run
@@ -69,22 +69,28 @@ e2e-systemd: build
 e2e-i18n: build
 	python3 -I tests/e2e_i18n.py ./target/debug/rinflow-agent
 
+# The window tests run on their own X display (Xvfb). Started from inside
+# a Wayland session they would inherit it, and AT-SPI's registry would then
+# send the test's pointer events the Wayland way, which never reach Xvfb:
+# the session's display variables are taken out first.
+XVFB := env -u WAYLAND_DISPLAY -u XAUTHORITY XDG_SESSION_TYPE=x11 xvfb-run -a
+
 # The window changes language while it runs: its text, its lists and the
 # agent's messages, read through AT-SPI. Needs xvfb-run, dbus, at-spi2-core,
 # python3-gi, gir1.2-atspi-2.0 (and imagemagick for SHOTS=<directory>).
 e2e-window-i18n: build locale
-	xvfb-run -a dbus-run-session -- python3 tests/e2e_window_i18n.py ./target/debug/rinflow $(SHOTS)
+	$(XVFB) dbus-run-session -- python3 tests/e2e_window_i18n.py ./target/debug/rinflow $(SHOTS)
 
 # The arrangement canvas with a real pointer (XTest through AT-SPI) against
 # a stand-in agent: click, drag from the strip, unplace, Escape, previews one
 # at a time. Same needs as e2e-window-i18n.
 e2e-canvas: build locale
-	xvfb-run -a -s "-screen 0 1280x1024x24" dbus-run-session -- python3 tests/e2e_canvas.py ./target/debug/rinflow ./target/debug/rinflow-agent $(SHOTS)
+	$(XVFB) -s "-screen 0 1280x1024x24" dbus-run-session -- python3 tests/e2e_canvas.py ./target/debug/rinflow ./target/debug/rinflow-agent $(SHOTS)
 
 # The pairing dialog against a stand-in agent: asked once, an answer is
 # final, an accepted pairing waits in a banner that can cancel it.
 e2e-window-pairing: build locale
-	xvfb-run -a -s "-screen 0 1280x1024x24" dbus-run-session -- python3 tests/e2e_window_pairing.py ./target/debug/rinflow ./target/debug/rinflow-agent
+	$(XVFB) -s "-screen 0 1280x1024x24" dbus-run-session -- python3 tests/e2e_window_pairing.py ./target/debug/rinflow ./target/debug/rinflow-agent
 
 # The crossing on two real GNOME desktops: Mutter headless + the GNOME portal
 # backend on each side; the permission dialogs are pressed through AT-SPI.
@@ -111,6 +117,11 @@ e2e-controlled: build
 # menu read and pressed over D-Bus. Needs dbus and python3-gi.
 e2e-tray: build locale
 	dbus-run-session -- python3 tests/e2e_tray.py ./target/debug/rinflow-agent
+
+# Notifications while no window is open, against a stand-in notification
+# service: a pairing request announced, opened, declined, withdrawn.
+e2e-notify: build locale
+	dbus-run-session -- python3 tests/e2e_notify.py ./target/debug/rinflow-agent
 
 locale: $(MO) $(DATA)
 

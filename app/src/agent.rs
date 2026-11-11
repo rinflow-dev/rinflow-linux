@@ -144,7 +144,9 @@ impl AgentClient {
         // Whatever was meant for the last connection doesn't go to this one.
         self.0.outgoing.borrow_mut().clear();
         *self.0.output.borrow_mut() = Some(connection.output_stream());
-        self.send(json!({"type": "hello", "protocol": PROTOCOL_VERSION}));
+        // "window": the agent leaves asking the user (a pairing, say) to
+        // this window instead of sending a notification.
+        self.send(json!({"type": "hello", "protocol": PROTOCOL_VERSION, "client": "window"}));
         loop {
             let line = match input.read_line_utf8_future(glib::Priority::DEFAULT).await {
                 Ok(Some(line)) => line,

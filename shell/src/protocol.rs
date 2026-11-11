@@ -22,6 +22,11 @@ pub const PROTOCOL_VERSION: u32 = 3;
 pub enum Request {
     Hello {
         protocol: u32,
+        /// What is asking: `window` for the window (the agent then leaves
+        /// asking the user to it, rather than sending a notification);
+        /// absent for `rinflowctl` and anything else.
+        #[serde(default)]
+        client: Option<String>,
     },
     Connect {
         peer_id: String,

@@ -74,6 +74,8 @@ or found broken.
   around screen corners.
 - **`rinflowctl`** (new): status, layout, placing devices by side or by
   coordinates, pairing, the lock, settings, from a terminal.
+- **Notifications** (new): a pairing request while no window is open,
+  and files that arrived, as desktop notifications from the agent.
 - **Tray icon** (new): a StatusNotifierItem from the agent.
 - **When the core cannot start** (new): its port taken, say, the agent stays
   up and the window says why and what to do, instead of the agent exiting.
@@ -130,7 +132,9 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
   are (`--filesystem=home`). Dragging files across the edge is not done.
 - A shortcut cannot send the pointer to another device: the InputCapture
   portal starts a capture only at an edge. It can bring it home.
-- The tray icon, the lock, the crossing delay and copied files have only
+- The "files received" notification is not covered by a test (the
+  pairing one is, `make e2e-notify`).
+- The tray icon, notifications, the lock, the crossing delay and copied files have only
   been run against the stand-in desktop (tests/fakedesk) and a stand-in
   tray host, not yet on a real GNOME or Plasma session.
 - The clipboard needs the RemoteDesktop permission (it comes with it), so it

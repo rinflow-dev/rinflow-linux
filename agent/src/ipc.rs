@@ -72,6 +72,8 @@ async fn serve_client(stream: UnixStream, services: Rc<Services>) {
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
     let mut snapshots = services.state.subscribe();
+    // Counted while connected, once it has said it is a window.
+    let mut is_window = false;
 
     let hello = Message::Hello {
         protocol: PROTOCOL_VERSION,
@@ -94,7 +96,7 @@ async fn serve_client(stream: UnixStream, services: Rc<Services>) {
             line = lines.next_line() => {
                 let Ok(Some(line)) = line else { break };
                 log::debug!("ipc request: {line}");
-                let reply = match handle_request(&line, &services) {
+                let reply = match handle_request(&line, &services, &mut is_window) {
                     Ok(reply) => reply,
                     Err(message) => Some(Message::Error { message }),
                 };
@@ -116,18 +118,26 @@ async fn serve_client(stream: UnixStream, services: Rc<Services>) {
             }
         }
     }
+    if is_window {
+        services.windows.send_modify(|count| *count = count.saturating_sub(1));
+    }
 }
 
 /// Acts on one request; some are answered with a message of their own.
-fn handle_request(line: &str, services: &Services) -> Result<Option<Message<'static>>, Text> {
+fn handle_request(line: &str, services: &Services, is_window: &mut bool) -> Result<Option<Message<'static>>, Text> {
     let request = Request::parse(line)?;
     let done = match request {
         Request::PreviewPlacement { peer_id, x, y } => {
             let offset = services.preview_placement(&peer_id, Offset { x, y });
             return Ok(Some(Message::PlacementPreview { peer_id, offset }));
         }
-        Request::Hello { protocol } if protocol == PROTOCOL_VERSION => Ok(()),
-        Request::Hello { protocol } => Err(Text::from(format!(
+        Request::Hello { protocol, client } if protocol == PROTOCOL_VERSION => {
+            if client.as_deref() == Some("window") && !std::mem::replace(is_window, true) {
+                services.windows.send_modify(|count| *count += 1);
+            }
+            Ok(())
+        }
+        Request::Hello { protocol, .. } => Err(Text::from(format!(
             "the window speaks protocol {protocol}, the agent speaks {PROTOCOL_VERSION}"
         ))),
         Request::Connect { peer_id } => Ok(services.core()?.connect(&peer_id)?),
