@@ -69,7 +69,7 @@ class FakeAgent:
 
     def serve(self):
         self.conn, _ = self.server.accept()
-        self.send({"type": "hello", "protocol": 2, "agent_version": self.state["agent_version"]})
+        self.send({"type": "hello", "protocol": 3, "agent_version": self.state["agent_version"]})
         self.send(dict(self.state, type="state"))
         buf = b""
         while True:

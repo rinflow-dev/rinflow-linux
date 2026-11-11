@@ -65,6 +65,16 @@ or found broken.
   window starts it through systemd when it runs the same program. A
   pending pairing can't be replaced by another device's request, Enter no
   longer accepts it, and Accept waits 1.5 s after the code is shown.
+- **Copied files** (new): files and folders copied in a file manager go
+  along with the clipboard, into `Downloads/Rinflow` on the other device
+  and onto its clipboard; off by default, up to 512 MiB, with progress and
+  Cancel in the window.
+- **Staying on one screen** (new): a lock (Settings, tray, `rinflowctl
+  lock`, Scroll Lock while driving), a delay before crossing and a margin
+  around screen corners.
+- **`rinflowctl`** (new): status, layout, placing devices by side or by
+  coordinates, pairing, the lock, settings, from a terminal.
+- **Tray icon** (new): a StatusNotifierItem from the agent.
 - **When the core cannot start** (new): its port taken, say, the agent stays
   up and the window says why and what to do, instead of the agent exiting.
 
@@ -115,14 +125,19 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
 
 ## Known limits
 
-- Files are not shared: copied files stay on their device (the core can do
-  it; the Linux shell does not offer it yet).
+- Copied files over 512 MiB are declined (there is nothing to ask the
+  user with yet). In the Flatpak, sending files needs access to where they
+  are (`--filesystem=home`). Dragging files across the edge is not done.
+- A shortcut cannot send the pointer to another device: the InputCapture
+  portal starts a capture only at an edge. It can bring it home.
+- The tray icon, the lock, the crossing delay and copied files have only
+  been run against the stand-in desktop (tests/fakedesk) and a stand-in
+  tray host, not yet on a real GNOME or Plasma session.
 - The clipboard needs the RemoteDesktop permission (it comes with it), so it
   is not there when other devices may not control this one, nor in Gaming
   Mode.
 - X11 sessions and wlroots compositors are not supported; Hyprland's portal
   leaks file descriptors per session in released versions.
-- No tray icon.
 - GTK's and libadwaita's own strings (the About dialog's tabs, an entry's
   menu) change language the next time the window opens; everything else at
   once. An open dialog keeps the language it was opened in.

@@ -121,6 +121,9 @@ pub enum ClipboardCommand {
     /// or stop: while off, nothing copied here is read at all. Off until
     /// told otherwise; turning it on reports the current selection.
     Enable(bool),
+    /// Share copied files too (`text/uri-list`): while off, a file list on
+    /// the clipboard is not read.
+    Files(bool),
 }
 
 /// What the clipboard of the emulation session reports.

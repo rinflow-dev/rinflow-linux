@@ -18,6 +18,10 @@ pub enum AgentCommand {
     /// Settings changed; keys named so the loop applies what concerns it.
     SettingsChanged(Vec<String>),
     RetryInput,
+    /// The lock changed (see `Snapshot::locked`).
+    LockChanged,
+    /// Bring the pointer home from the peer being driven.
+    Home,
     Quit,
 }
 

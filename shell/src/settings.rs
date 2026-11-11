@@ -39,7 +39,23 @@ pub struct Settings {
     /// Share the clipboard with peers as control changes hands (text, HTML,
     /// images). Off by default, as on Windows.
     pub clipboard: bool,
+    /// Share copied files as well: files copied on one device can be
+    /// pasted on the next. Needs `clipboard`; off by default.
+    pub files: bool,
+    /// How long the pointer must keep pushing against an edge before it
+    /// crosses, in milliseconds (0: at once). Against crossing by accident.
+    pub switch_delay_ms: u32,
+    /// Edge hits this close to a screen corner (logical points) do not
+    /// cross: corners are where menus and hot corners live. 0: none.
+    pub corner_guard: u32,
+    /// Scroll Lock, pressed while driving another device, keeps the
+    /// pointer on it (or lets it go again).
+    pub scroll_lock_locks: bool,
 }
+
+/// The longest `switch_delay_ms`, and the largest `corner_guard`.
+pub const MAX_SWITCH_DELAY_MS: u32 = 2000;
+pub const MAX_CORNER_GUARD: u32 = 400;
 
 /// Pointer and scrolling on one peer, applied by this device as it drives it
 /// (it tracks the pointer there, so the peer must not change the motion).
@@ -85,6 +101,10 @@ impl Default for Settings {
             peer_input: BTreeMap::new(),
             language: "system".to_owned(),
             clipboard: false,
+            files: false,
+            switch_delay_ms: 0,
+            corner_guard: 0,
+            scroll_lock_locks: true,
         }
     }
 }
@@ -127,6 +147,12 @@ impl Settings {
             .find(|address| rinflow_core::parse_address(address, DISCOVERY_PORT).is_err())
         {
             return Err(msg("“{address}” isn't a valid address. Enter an IP address or a device name.").arg("address", bad.as_str()));
+        }
+        if merged.switch_delay_ms > MAX_SWITCH_DELAY_MS {
+            return Err(msg("The crossing delay can be at most {max} ms").arg("max", MAX_SWITCH_DELAY_MS.to_string()));
+        }
+        if merged.corner_guard > MAX_CORNER_GUARD {
+            return Err(msg("The corner margin can be at most {max} points").arg("max", MAX_CORNER_GUARD.to_string()));
         }
         if merged.peer_input.values().any(|input| !input.is_valid()) {
             return Err(msg("Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× and 5×"));

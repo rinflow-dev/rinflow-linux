@@ -110,6 +110,7 @@ make e2e-controlled  # a real desktop (Mutter or KWin, RINFLOW_TEST_DESKTOP) as 
 # The e2e-gnome family on a desktop machine also needs the `mutter` binary (Debian/Ubuntu: apt install mutter).
 # The tests use their own ports and directories, so they run beside an installed Rinflow; only `make e2e`
 # checks the default port 42421 and needs it free.
+make e2e-tray     # the tray icon against a stand-in StatusNotifierWatcher: menu read and pressed over D-Bus
 make e2e-i18n     # the agent's text goes out untranslated; the language setting (no display needed)
 make e2e-window-i18n  # the window switching language live, under Xvfb (AT-SPI)
 make e2e-canvas   # dragging in the arrangement: click, strip, unplace, Escape, magnet and previews (Xvfb, XTest)
@@ -207,9 +208,56 @@ The design is one systemd user service for the whole login, so that switching th
 | The window's socket | `$XDG_RUNTIME_DIR/rinflow/agent.sock` |
 | Start at login | `~/.config/autostart/com.rinflow.rinflow.agent.desktop` (outside Flatpak) |
 
+## Files
+
+**Share copied files** on the Settings page (off by default; needs **Share
+the clipboard**). Files and folders copied in a file manager on one device
+can be pasted on the next once the pointer has moved there.
+
+| | How |
+| --- | --- |
+| Copied here | The file manager's `text/uri-list` (or `x-special/gnome-copied-files`) is read with the clipboard and handed to the core, which sends a manifest; the paths stay on this device and the contents go when the other device takes them. While the setting is off the list is not read. |
+| From a peer | Every transfer is offered to the agent first. With the setting on and up to 512 MiB it is received into `Rinflow` in the download folder (`XDG_DOWNLOAD_DIR`), with a progress banner in the window that can cancel it; then the files are on this desktop's clipboard as `text/uri-list` and `x-special/gnome-copied-files`, so Nautilus, Dolphin and the rest paste them. With the setting off it is declined and nothing is written. |
+| Flatpak | Receiving works as is. Sending reads the copied files where they are, which the sandbox allows only for what it can see: `flatpak override --user --filesystem=home com.rinflow.rinflow`. |
+
+## Staying on one screen
+
+| | |
+| --- | --- |
+| **Keep the pointer on this screen** | In Settings, the tray menu, or `rinflowctl lock [on\|off\|toggle]`. At home the edges stop leading anywhere; while another device is controlled the pointer stays on it. Not kept between runs. |
+| Scroll Lock | While another device is controlled, Scroll Lock does the same (it is not sent on); a setting turns that off. |
+| Shortcuts | The InputCapture portal starts a capture only at an edge, so a key cannot send the pointer *to* another device. Coming back can be a key: bind `rinflowctl home` (or `rinflowctl lock toggle`) in the desktop's keyboard shortcuts. Ctrl+Alt+Esc always comes home. |
+| **Delay before crossing** | The pointer crosses only after pushing against the edge for this long (0–2000 ms); stopping or pulling back gives it back. |
+| **Corner margin** | Edge hits this close to a screen corner (0–400 points) do not cross: hot corners and menus live there. |
+
+## The command line
+
+`rinflowctl` speaks the window's protocol to the agent: for machines without
+a display, scripts and keyboard shortcuts.
+
+```sh
+rinflowctl status              # this device, its devices, input, the lock
+rinflowctl layout              # displays and placed devices, in logical points
+rinflowctl place mac left      # attach a device to a side: left, right, above, below
+rinflowctl place mac --at 1920,120   # or give its top-left corner; the core snaps it
+rinflowctl unplace mac
+rinflowctl connect mac; rinflowctl pair accept
+rinflowctl lock toggle; rinflowctl home
+rinflowctl set switch_delay_ms 250
+```
+
+A device is named by its name or ID, or the start of either.
+
+## The tray icon
+
+A StatusNotifierItem from the agent (no toolkit): what is going on, pause
+sharing, keep the pointer here, open the window, quit. Plasma, Steam Deck's
+Desktop Mode, Cinnamon and Xfce show it; GNOME does with the AppIndicator
+extension (`gnome-extensions enable ubuntu-appindicators@ubuntu.com`).
+
 ## Not in this version
 
-Files (copy and paste of files), X11 and wlroots backends, the tray icon, the Decky
+X11 and wlroots backends, dragging files across the edge, the Decky
 plugin for Gaming Mode, Hyprland through its portal (it leaks file
 descriptors per session in released versions).
 

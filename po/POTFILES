@@ -2,6 +2,7 @@
 agent/src/backends.rs
 agent/src/main.rs
 agent/src/services.rs
+agent/src/tray.rs
 app/src/agent.rs
 app/src/canvas.rs
 app/src/main.rs

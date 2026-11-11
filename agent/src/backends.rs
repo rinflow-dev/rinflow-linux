@@ -97,6 +97,8 @@ pub struct Backends {
     clipboard_events: mpsc::UnboundedSender<ClipboardEvent>,
     /// The user shares the clipboard: each new emulation session is told.
     clipboard_enabled: bool,
+    /// The user shares copied files too (with the clipboard).
+    files_enabled: bool,
     /// The session bus, for the systemd manager's environment.
     bus: Option<zbus::Connection>,
     last_scan: Instant,
@@ -137,6 +139,7 @@ impl Backends {
             emulation_retry: Retry::new(),
             clipboard_events,
             clipboard_enabled: false,
+            files_enabled: false,
             bus: None,
             // The first poll looks at the systemd manager's environment too.
             last_scan: Instant::now() - RESCAN,
@@ -176,6 +179,14 @@ impl Backends {
         self.clipboard_enabled = enabled;
         if let Some(commands) = self.emulation.as_ref().and_then(|e| e.clipboard.as_ref()) {
             let _ = commands.send(ClipboardCommand::Enable(enabled));
+        }
+    }
+
+    /// Shares copied files with the clipboard, or leaves them alone.
+    pub fn set_files_enabled(&mut self, enabled: bool) {
+        self.files_enabled = enabled;
+        if let Some(commands) = self.emulation.as_ref().and_then(|e| e.clipboard.as_ref()) {
+            let _ = commands.send(ClipboardCommand::Files(enabled));
         }
     }
 
@@ -367,6 +378,7 @@ impl Backends {
         // gamescope has none to give.
         let (clipboard, link) = if source == EisSource::Portal {
             let (commands, commands_rx) = mpsc::unbounded_channel();
+            let _ = commands.send(ClipboardCommand::Files(self.files_enabled));
             let _ = commands.send(ClipboardCommand::Enable(self.clipboard_enabled));
             let link = ClipboardLink { commands: commands_rx, events: self.clipboard_events.clone() };
             (Some(commands), Some(link))

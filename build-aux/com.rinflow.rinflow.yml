@@ -20,6 +20,12 @@ finish-args:
   - --share=network
   # The window finds the agent's socket in the runtime directory.
   - --filesystem=xdg-run/rinflow:create
+  # The tray icon (agent/src/tray.rs).
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Files copied on other devices arrive here (agent/src/paths.rs). Files
+  # copied on this one are read where they are, which needs more: see the
+  # README ("Files").
+  - --filesystem=xdg-download/Rinflow:create
   # Steam Deck Gaming Mode: gamescope's own EIS socket (see input/src/ei_discover.rs).
   - --filesystem=xdg-run/gamescope-0-ei
 modules:
@@ -34,6 +40,7 @@ modules:
       - cargo --offline build --release --manifest-path rinflow-linux/Cargo.toml
       - install -Dm755 rinflow-linux/target/release/rinflow /app/bin/rinflow
       - install -Dm755 rinflow-linux/target/release/rinflow-agent /app/bin/rinflow-agent
+      - install -Dm755 rinflow-linux/target/release/rinflowctl /app/bin/rinflowctl
       # The catalogs and the translated desktop entry and metainfo (msgfmt).
       - make -C rinflow-linux locale
       - install -Dm644 rinflow-linux/target/data/com.rinflow.rinflow.desktop /app/share/applications/com.rinflow.rinflow.desktop

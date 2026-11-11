@@ -44,6 +44,7 @@ depends = "$auto, libadwaita-1-0 (>= 1.5)"
 assets = [
     ["target/release/rinflow", "usr/bin/", "755"],
     ["target/release/rinflow-agent", "usr/bin/", "755"],
+    ["target/release/rinflowctl", "usr/bin/", "755"],
     ["../target/data/com.rinflow.rinflow.desktop", "usr/share/applications/", "644"],
     ["../target/data/com.rinflow.rinflow.metainfo.xml", "usr/share/metainfo/", "644"],
     ["../data/icons/com.rinflow.rinflow.svg", "usr/share/icons/hicolor/scalable/apps/", "644"],

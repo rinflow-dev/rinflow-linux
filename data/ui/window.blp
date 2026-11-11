@@ -43,6 +43,12 @@ template $RinflowWindow : Adw.ApplicationWindow {
           button-label: _("Cancel");
         }
 
+        // Copied files arriving from another device.
+        Adw.Banner transfer_banner {
+          use-markup: false;
+          button-label: _("Cancel");
+        }
+
         Adw.ViewStack stack {
           vexpand: true;
 
@@ -145,8 +151,50 @@ template $RinflowWindow : Adw.ApplicationWindow {
                   subtitle: _("Text and images copied here go along when the pointer moves to another device, and come back with it.");
                 }
 
+                Adw.SwitchRow files_row {
+                  title: _("Share copied files");
+                  subtitle: _("Files copied on one device can be pasted on the next. Received files are kept in the Rinflow folder in Downloads.");
+                }
+
                 Adw.SwitchRow autostart_row {
                   title: _("Start when I sign in");
+                }
+              }
+
+              Adw.PreferencesGroup {
+                title: _("Crossing");
+                description: _("When the pointer may leave this screen for another device.");
+
+                Adw.SwitchRow lock_row {
+                  title: _("Keep the pointer on this screen");
+                  subtitle: _("No edge leads to another device until this is turned off.");
+                }
+
+                Adw.SwitchRow scroll_lock_row {
+                  title: _("Scroll Lock keeps the pointer");
+                  subtitle: _("While you control another device, Scroll Lock keeps the pointer there until it is pressed again.");
+                }
+
+                Adw.SpinRow delay_row {
+                  title: _("Delay before crossing");
+                  subtitle: _("How long the pointer must push against an edge, in milliseconds. 0 crosses at once.");
+                  adjustment: Adjustment {
+                    lower: 0;
+                    upper: 2000;
+                    step-increment: 50;
+                    page-increment: 250;
+                  };
+                }
+
+                Adw.SpinRow corner_row {
+                  title: _("Corner margin");
+                  subtitle: _("Edges this close to a corner of the screen don't cross, in points. 0 turns it off.");
+                  adjustment: Adjustment {
+                    lower: 0;
+                    upper: 400;
+                    step-increment: 10;
+                    page-increment: 50;
+                  };
                 }
               }
 

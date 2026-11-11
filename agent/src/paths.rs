@@ -43,6 +43,28 @@ pub fn socket_path() -> PathBuf {
     runtime.join(APP_DIR).join("agent.sock")
 }
 
+/// Where files copied on other devices arrive: `Rinflow` in the user's
+/// download folder (`XDG_DOWNLOAD_DIR` in `user-dirs.dirs`, or
+/// `~/Downloads`).
+pub fn download_directory() -> PathBuf {
+    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"));
+    let configured = std::fs::read_to_string(xdg("XDG_CONFIG_HOME", &[".config"]).join("user-dirs.dirs"))
+        .ok()
+        .and_then(|text| {
+            text.lines()
+                .filter_map(|line| line.trim().strip_prefix("XDG_DOWNLOAD_DIR="))
+                .next_back()
+                .map(|value| value.trim().trim_matches('"').to_owned())
+        })
+        .filter(|value| !value.is_empty())
+        .map(|value| match value.strip_prefix("$HOME") {
+            Some(rest) => home.join(rest.trim_start_matches('/')),
+            None => PathBuf::from(value),
+        })
+        .filter(|path| path.is_absolute() && *path != home);
+    configured.unwrap_or_else(|| home.join("Downloads")).join("Rinflow")
+}
+
 /// `~/.config/autostart`.
 pub fn autostart_directory() -> PathBuf {
     xdg("XDG_CONFIG_HOME", &[".config"]).join("autostart")

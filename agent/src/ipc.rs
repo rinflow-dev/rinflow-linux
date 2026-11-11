@@ -149,6 +149,16 @@ fn handle_request(line: &str, services: &Services) -> Result<Option<Message<'sta
             let _ = services.commands.send(AgentCommand::RetryInput);
             Ok(())
         }
+        Request::SetLocked { locked } => {
+            services.state.set_locked(locked);
+            let _ = services.commands.send(AgentCommand::LockChanged);
+            Ok(())
+        }
+        Request::Home => {
+            let _ = services.commands.send(AgentCommand::Home);
+            Ok(())
+        }
+        Request::CancelFiles { transfer } => Ok(services.core()?.cancel_files(transfer)?),
         Request::Quit => {
             let _ = services.commands.send(AgentCommand::Quit);
             Ok(())

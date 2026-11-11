@@ -139,6 +139,64 @@ if __name__ == "__main__":
     step("B's desktop is offered nothing new", fake_b.state()["selection_sets"] == sets_b)
     step("back home", back())
 
+    # --- Copied files --------------------------------------------------------
+    import hashlib, shutil, urllib.parse
+    source = "/tmp/clip-files-a"
+    shutil.rmtree(source, ignore_errors=True)
+    os.makedirs(f"{source}/报告/图")
+    payload = os.urandom(3 * 1024 * 1024 + 123)
+    with open(f"{source}/报告/第一章.bin", "wb") as f:
+        f.write(payload)
+    with open(f"{source}/报告/图/a b.txt", "w") as f:
+        f.write("inside a folder")
+    with open(f"{source}/note.txt", "w") as f:
+        f.write("a single file")
+    uri = lambda path: "file://" + urllib.parse.quote(path)
+    uri_list = (uri(f"{source}/报告") + "\r\n" + uri(f"{source}/note.txt") + "\r\n").encode()
+    downloads = "/tmp/home-cb/Downloads/Rinflow"
+
+    b.send({"type": "update_settings", "values": {"clipboard": True}})
+    b.wait(lambda s: s["settings"]["clipboard"])
+    step("sharing files is off by default", a.state["settings"]["files"] is False and b.state["settings"]["files"] is False)
+
+    # Off on the sender: the file list is not even read.
+    reads = len(fake_a.state()["reads"])
+    copy(fake_a, ("text/uri-list", uri_list), ("text/plain;charset=utf-8", "报告\nnote.txt".encode()))
+    fake_a.wait(lambda s: len(s["reads"]) > reads, 5)
+    step("files off: the copied file list is not read", "text/uri-list" not in fake_a.state()["reads"][reads:], json.dumps(fake_a.state()["reads"][reads:]))
+    a.send({"type": "update_settings", "values": {"files": True}})
+    step("files on at A: the list already copied is read at once", fake_a.wait(lambda s: "text/uri-list" in s["reads"][reads:], 5))
+
+    # Off on the receiver: nothing lands.
+    step("A crosses with files, B not taking any", cross())
+    a.pump(1.5); b.pump(1.0)
+    step("nothing arrived on B", not os.path.exists(downloads) or not os.listdir(downloads))
+    step("back home", back())
+
+    b.send({"type": "update_settings", "values": {"files": True}})
+    b.wait(lambda s: s["settings"]["files"])
+    # Copied again (a new copy is a new transfer), then across.
+    copy(fake_a, ("text/uri-list", uri_list), ("text/plain;charset=utf-8", "报告\nnote.txt".encode()))
+    fake_a.wait(lambda s: s["reads"][-2:].count("text/uri-list") >= 1, 5)
+    sets_b = fake_b.state()["selection_sets"]
+    step("A crosses with the files", cross())
+    step("B's desktop is offered files, as file managers take them",
+         fake_b.wait(lambda s: s["selection_sets"] > sets_b and s["offered_types"][:2] == ["text/uri-list", "x-special/gnome-copied-files"], 30),
+         json.dumps(fake_b.state()["offered_types"]))
+    pasted = paste(fake_b, "text/uri-list")
+    paths = [urllib.parse.unquote(line[len("file://"):]) for line in (pasted or b"").decode().split() if line.startswith("file://")]
+    step("pasting gives paths in B's download folder", len(paths) == 2 and all(p.startswith(downloads + "/") for p in paths), repr(pasted))
+    folder = next((p for p in paths if p.endswith("报告")), "")
+    received = f"{folder}/第一章.bin"
+    step("the folder came whole, the large file identical",
+         os.path.isfile(received) and hashlib.sha256(open(received, "rb").read()).digest() == hashlib.sha256(payload).digest()
+         and open(f"{folder}/图/a b.txt").read() == "inside a folder")
+    step("... and the single file", any(os.path.isfile(p) and open(p).read() == "a single file" for p in paths if p.endswith("note.txt")))
+    nautilus = paste(fake_b, "x-special/gnome-copied-files")
+    step("GTK file managers get their own form: copy, then the URLs", (nautilus or b"").startswith(b"copy\nfile://") and b"\r" not in (nautilus or b""), repr(nautilus))
+    step("the transfer is over in the snapshot", b.wait(lambda s: s.get("transfer") is None, 10))
+    step("back home", back())
+
     a.quit(); b.quit()
     step("agents exit cleanly", a.proc.returncode == 0 and b.proc.returncode == 0)
     fake_a.stop(); fake_b.stop()

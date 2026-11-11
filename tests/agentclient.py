@@ -13,7 +13,7 @@ class Agent:
             shutil.rmtree(runtime, ignore_errors=True)
         self.env = dict(os.environ, HOME=home, XDG_RUNTIME_DIR=runtime,
                         XDG_DATA_HOME=f"{home}/.local/share", XDG_STATE_HOME=f"{home}/.local/state",
-                        RUST_LOG="info", LANG="en_US.UTF-8")
+                        RUST_LOG=os.environ.get("RINFLOW_TEST_LOG", "info"), LANG="en_US.UTF-8")
         for key, value in (env or {}).items():
             # None removes a variable (an agent started before any desktop).
             if value is None:
@@ -43,7 +43,7 @@ class Agent:
         self.s.settimeout(0.5)
         hello = self.read()
         assert hello["type"] == "hello", hello
-        self.send({"type": "hello", "protocol": 2})
+        self.send({"type": "hello", "protocol": 3})
         self.pump(1.0)
 
     def read(self):

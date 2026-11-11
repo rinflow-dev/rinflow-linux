@@ -12,7 +12,10 @@ use serde_json::{Map, Value};
 /// Bumped whenever a request or a snapshot field changes meaning.
 /// 2: text for the user (`last_error`, `input.*.detail`, `error`) is a
 /// [`Text`], translated by the window, rather than a translated string.
-pub const PROTOCOL_VERSION: u32 = 2;
+/// 3: `locked` in the snapshot; `set_locked`, `home`; the settings
+/// `switch_delay_ms`, `corner_guard`, `scroll_lock_locks`; copied files
+/// (`transfer` in the snapshot, `cancel_files`, the setting `files`).
+pub const PROTOCOL_VERSION: u32 = 3;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -66,6 +69,19 @@ pub enum Request {
     /// Asks the desktop again for permission to capture or play input,
     /// after the user declined or the session was lost.
     RetryInput,
+    /// Keeps the pointer on the screen it is on (this device's, or the
+    /// peer's being driven), or lets it cross again; without `locked`, the
+    /// other of the two.
+    SetLocked {
+        #[serde(default)]
+        locked: Option<bool>,
+    },
+    /// Brings the pointer back from the peer being driven, if any.
+    Home,
+    /// Stops receiving the files of snapshot `transfer`.
+    CancelFiles {
+        transfer: u32,
+    },
     /// Quits the agent.
     Quit,
 }
@@ -115,6 +131,11 @@ mod tests {
         let request = Request::parse(r#"{"type":"place_beside","peer_id":"mac","side":"left"}"#)
             .unwrap();
         assert!(matches!(request, Request::PlaceBeside { side: Side::Left, .. }));
+        assert!(matches!(Request::parse(r#"{"type":"set_locked"}"#).unwrap(), Request::SetLocked { locked: None }));
+        assert!(matches!(
+            Request::parse(r#"{"type":"set_locked","locked":true}"#).unwrap(),
+            Request::SetLocked { locked: Some(true) }
+        ));
         assert!(Request::parse(r#"{"type":"dance"}"#).is_err());
     }
 }

@@ -87,6 +87,13 @@ pub struct DeviceView {
     pub last_seen_ms: Option<u64>,
 }
 
+impl TransferView {
+    /// How much has arrived, from 0 to 100.
+    pub fn percent(&self) -> u64 {
+        (self.received.min(self.total) * 100).checked_div(self.total).unwrap_or(100)
+    }
+}
+
 /// How one direction of input stands on this desktop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -170,8 +177,28 @@ pub struct Snapshot {
     pub manual_addresses: Vec<Value>,
     /// Which peer this device drives right now, if any.
     pub driving: Option<String>,
+    /// The pointer is kept on the screen it is on: no edge crosses. Not
+    /// kept between runs.
+    #[serde(default)]
+    pub locked: bool,
+    /// Files a peer copied, being received now.
+    #[serde(default)]
+    pub transfer: Option<TransferView>,
     /// How input stands on this desktop.
     pub input: InputView,
+}
+
+/// Copied files on their way to this device.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TransferView {
+    /// The core's number for it (`cancel_files`).
+    pub transfer: u32,
+    pub peer_id: String,
+    /// The first file or folder's name, and how many there are at the top.
+    pub name: String,
+    pub items: u64,
+    pub total: u64,
+    pub received: u64,
 }
 
 #[derive(Clone)]
@@ -204,6 +231,8 @@ impl SharedState {
             quitting: false,
             manual_addresses: Vec::new(),
             driving: None,
+            locked: false,
+            transfer: None,
             input: InputView::default(),
         })))
     }
@@ -244,6 +273,21 @@ impl SharedState {
     pub fn set_driving(&self, peer_id: Option<String>) {
         self.0
             .send_if_modified(|snapshot| replace(&mut snapshot.driving, peer_id));
+    }
+
+    /// Locks the pointer to its screen or frees it (`None`: the other of
+    /// the two); the new state.
+    pub fn set_locked(&self, locked: Option<bool>) -> bool {
+        let mut now = false;
+        self.0.send_if_modified(|snapshot| {
+            now = locked.unwrap_or(!snapshot.locked);
+            replace(&mut snapshot.locked, now)
+        });
+        now
+    }
+
+    pub fn locked(&self) -> bool {
+        self.0.borrow().locked
     }
 
     pub fn set_capture(&self, view: BackendView) {
@@ -461,6 +505,50 @@ impl SharedState {
             "error" => {
                 snapshot.last_error = event["message"].as_str().map(Text::from);
                 true
+            }
+            "files_receiving" => {
+                let number = |key: &str| event[key].as_u64().unwrap_or(0);
+                snapshot.transfer = Some(TransferView {
+                    transfer: number("transfer") as u32,
+                    peer_id: event["peer_id"].as_str().unwrap_or_default().to_owned(),
+                    name: event["name"].as_str().unwrap_or_default().to_owned(),
+                    items: number("items").max(1),
+                    total: number("total_size"),
+                    received: 0,
+                });
+                true
+            }
+            "files_progress" => {
+                let (Some(transfer), Some(received)) = (event["transfer"].as_u64(), event["received"].as_u64()) else {
+                    return false;
+                };
+                match &mut snapshot.transfer {
+                    // Told to the window a hundredth at a time, not chunk by chunk.
+                    Some(view) if u64::from(view.transfer) == transfer => {
+                        let step = (view.total / 100).max(1);
+                        if received / step != view.received / step || received >= view.total {
+                            replace(&mut view.received, received)
+                        } else {
+                            false
+                        }
+                    }
+                    _ => false,
+                }
+            }
+            "files_received" | "files_failed" => {
+                let transfer = event["transfer"].as_u64();
+                let ours = snapshot.transfer.as_ref().is_some_and(|view| Some(u64::from(view.transfer)) == transfer);
+                if ours {
+                    snapshot.transfer = None;
+                }
+                let reason = event["reason"].as_str().unwrap_or_default();
+                // Stopped by the user, or by a newer copy: not a failure.
+                let failed = kind == "files_failed" && !matches!(reason, "" | "cancelled" | "replaced by a newer copy");
+                if failed {
+                    // Translators: {reason} is the cause, in English.
+                    snapshot.last_error = Some(msg("The copied files couldn't be received: {reason}").arg("reason", reason));
+                }
+                ours || failed
             }
             "manual_addresses" => {
                 let addresses = event["addresses"].as_array().cloned().unwrap_or_default();

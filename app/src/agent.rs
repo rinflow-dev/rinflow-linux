@@ -287,6 +287,14 @@ impl AgentClient {
         self.send(json!({"type": "clear_error"}));
     }
 
+    pub fn set_locked(&self, locked: bool) {
+        self.send(json!({"type": "set_locked", "locked": locked}));
+    }
+
+    pub fn cancel_files(&self, transfer: u32) {
+        self.send(json!({"type": "cancel_files", "transfer": transfer}));
+    }
+
     pub fn retry_input(&self) {
         self.send(json!({"type": "retry_input"}));
     }

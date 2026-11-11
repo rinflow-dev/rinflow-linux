@@ -14,6 +14,11 @@
 //! The wire carries three MIME types (`rinflow_core::MIME_*`); this maps
 //! them to and from what Wayland applications offer.
 //!
+//! Copied files are a fourth, `text/uri-list`: read here as the file
+//! manager offers it (the core turns the paths into a manifest; they never
+//! leave this device), and, for files a peer sent, offered to file managers
+//! with the paths the core saved them under.
+//!
 //! The two signals are read straight off the bus rather than through
 //! ashpd: xdg-desktop-portal 1.20 sends `SelectionOwnerChanged`'s
 //! `mime_types` wrapped in a struct, `(as)` where the specification says
@@ -25,6 +30,7 @@ use ashpd::desktop::Session;
 use ashpd::desktop::clipboard::{Clipboard as Portal, RequestClipboardOptions, SetSelectionOptions};
 use ashpd::desktop::remote_desktop::RemoteDesktop;
 use futures_util::StreamExt;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use zbus::zvariant::{OwnedObjectPath, OwnedValue};
 use rinflow_core::{Clipboard, ClipboardFormat, MAX_CLIPBOARD_SIZE, MIME_HTML, MIME_PNG, MIME_TEXT};
@@ -45,6 +51,13 @@ const PNG_TYPE: &str = "image/png";
 /// Password managers (KeePassXC, KWallet, …) mark what they copy with this
 /// type, holding `secret`; such contents never leave this device.
 const PASSWORD_HINT: &str = "x-kde-passwordManagerHint";
+/// Copied files: `file://` URLs, one per line. Also the wire's name for it.
+const URI_LIST: &str = "text/uri-list";
+/// What Nautilus and other GTK file managers paste from: `copy` or `cut`,
+/// then the URLs, one per line.
+const GNOME_COPIED_FILES: &str = "x-special/gnome-copied-files";
+/// A list of copied files is small; anything larger is not one.
+const MAX_URI_LIST: usize = 1024 * 1024;
 
 /// Asks for the clipboard on `session`; must come before the session's
 /// `Start`. `None` when the desktop has no clipboard portal or refuses.
@@ -91,6 +104,7 @@ pub async fn serve(
     let mut offered: Option<Clipboard> = None;
     let mut desktop_types: Vec<String> = Vec::new();
     let mut enabled = false;
+    let mut files = false;
 
     loop {
         tokio::select! {
@@ -113,7 +127,16 @@ pub async fn serve(
                 Some(ClipboardCommand::Enable(on)) => {
                     let was = std::mem::replace(&mut enabled, on);
                     if on && !was && offered.is_none() && !desktop_types.is_empty() {
-                        let clipboard = read_shared(&portal, &session, &desktop_types).await;
+                        let clipboard = read_shared(&portal, &session, &desktop_types, files).await;
+                        let _ = events.send(ClipboardEvent::Changed(clipboard));
+                    }
+                }
+                Some(ClipboardCommand::Files(on)) => {
+                    let was = std::mem::replace(&mut files, on);
+                    // Files already copied are shared (or no longer) at once.
+                    let copied = desktop_types.iter().any(|t| t == URI_LIST || t == GNOME_COPIED_FILES);
+                    if on != was && enabled && offered.is_none() && copied {
+                        let clipboard = read_shared(&portal, &session, &desktop_types, files).await;
                         let _ = events.send(ClipboardEvent::Changed(clipboard));
                     }
                 }
@@ -132,7 +155,7 @@ pub async fn serve(
                 desktop_types = change.mime_types;
                 log::debug!("clipboard: desktop selection changed: {desktop_types:?}");
                 if enabled {
-                    let clipboard = read_shared(&portal, &session, &desktop_types).await;
+                    let clipboard = read_shared(&portal, &session, &desktop_types, files).await;
                     let _ = events.send(ClipboardEvent::Changed(clipboard));
                 }
             }
@@ -148,7 +171,7 @@ pub async fn serve(
                     continue;
                 }
                 let data = offered.as_ref().and_then(|clipboard| data_for(clipboard, &mime));
-                write_selection(&portal, &session, serial, &mime, data).await;
+                write_selection(&portal, &session, serial, &mime, data.as_deref()).await;
             }
         }
     }
@@ -217,7 +240,7 @@ impl OwnerChange {
 /// Reads the formats Rinflow shares out of the desktop's selection, most
 /// specific first, within the core's size limit. Empty when a password
 /// manager marked it, or nothing shareable is there.
-async fn read_shared(portal: &Portal, session: &Session<RemoteDesktop>, types: &[String]) -> Clipboard {
+async fn read_shared(portal: &Portal, session: &Session<RemoteDesktop>, types: &[String], files: bool) -> Clipboard {
     let has = |name: &str| types.iter().any(|t| t.eq_ignore_ascii_case(name));
     if has(PASSWORD_HINT) {
         let hint = read(portal, session, PASSWORD_HINT, 64).await.unwrap_or_default();
@@ -237,6 +260,20 @@ async fn read_shared(portal: &Portal, session: &Session<RemoteDesktop>, types: &
             log::info!("clipboard: {mime} ({} bytes) left out, over the size limit", data.len());
         }
     };
+    // Copied files come first: the core looks for them there, and sends
+    // the rest (the file names as text, say) along.
+    if files {
+        let list = if has(URI_LIST) {
+            read(portal, session, URI_LIST, MAX_URI_LIST).await.and_then(|bytes| decode_text(&bytes))
+        } else if has(GNOME_COPIED_FILES) {
+            read(portal, session, GNOME_COPIED_FILES, MAX_URI_LIST).await.and_then(|bytes| decode_text(&bytes))
+        } else {
+            None
+        };
+        if let Some(list) = list.as_deref().map(file_urls).filter(|list| !list.is_empty()) {
+            take(URI_LIST, list.into_bytes(), &mut budget);
+        }
+    }
     if has(HTML_TYPE)
         && let Some(html) = read(portal, session, HTML_TYPE, budget).await
         && let Some(text) = decode_text(&html)
@@ -352,6 +389,7 @@ pub fn local_types(clipboard: &Clipboard) -> Vec<String> {
     let mut types = Vec::new();
     for format in &clipboard.formats {
         let names: &[&str] = match format.mime.as_str() {
+            URI_LIST => &[URI_LIST, GNOME_COPIED_FILES],
             MIME_HTML => &[HTML_TYPE],
             MIME_PNG => &[PNG_TYPE],
             MIME_TEXT => &TEXT_TYPES,
@@ -367,7 +405,15 @@ pub fn local_types(clipboard: &Clipboard) -> Vec<String> {
 }
 
 /// The bytes to paste for a local MIME type, if the peer's clipboard has them.
-pub fn data_for<'a>(clipboard: &'a Clipboard, mime: &str) -> Option<&'a [u8]> {
+pub fn data_for<'a>(clipboard: &'a Clipboard, mime: &str) -> Option<Cow<'a, [u8]>> {
+    let files = || clipboard.formats.iter().find(|format| format.mime == URI_LIST);
+    if mime.eq_ignore_ascii_case(URI_LIST) {
+        return files().map(|format| Cow::Borrowed(format.data.as_slice()));
+    }
+    if mime.eq_ignore_ascii_case(GNOME_COPIED_FILES) {
+        let list = file_urls(&String::from_utf8_lossy(&files()?.data));
+        return Some(Cow::Owned(format!("copy\n{}", list.replace("\r\n", "\n").trim_end()).into_bytes()));
+    }
     let wire = if mime.eq_ignore_ascii_case(HTML_TYPE) || mime.to_ascii_lowercase().starts_with("text/html;") {
         MIME_HTML
     } else if mime.eq_ignore_ascii_case(PNG_TYPE) {
@@ -381,7 +427,19 @@ pub fn data_for<'a>(clipboard: &'a Clipboard, mime: &str) -> Option<&'a [u8]> {
         .formats
         .iter()
         .find(|format| format.mime == wire)
-        .map(|format| format.data.as_slice())
+        .map(|format| Cow::Borrowed(format.data.as_slice()))
+}
+
+/// The `file://` URLs of a `text/uri-list` (or of Nautilus's form of it,
+/// whose first line is `copy` or `cut`), one per line ending in CR LF as
+/// the type has it. Comments and anything that is not a local file are
+/// left out.
+pub fn file_urls(list: &str) -> String {
+    list.lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("file://"))
+        .map(|line| format!("{line}\r\n"))
+        .collect()
 }
 
 /// Text as applications hand it over: UTF-8 nearly always; UTF-16 with a
@@ -420,12 +478,26 @@ mod tests {
             local_types(&c),
             ["text/html", "text/plain;charset=utf-8", "UTF8_STRING", "text/plain", "STRING", "TEXT"]
         );
-        assert_eq!(data_for(&c, "UTF8_STRING"), Some(&b"hi"[..]));
-        assert_eq!(data_for(&c, "text/plain;charset=UTF-8"), Some(&b"hi"[..]));
-        assert_eq!(data_for(&c, "text/html"), Some(&b"<b>hi</b>"[..]));
+        assert_eq!(data_for(&c, "UTF8_STRING").as_deref(), Some(&b"hi"[..]));
+        assert_eq!(data_for(&c, "text/plain;charset=UTF-8").as_deref(), Some(&b"hi"[..]));
+        assert_eq!(data_for(&c, "text/html").as_deref(), Some(&b"<b>hi</b>"[..]));
         assert_eq!(data_for(&c, "image/png"), None);
         assert_eq!(data_for(&c, "text/rtf"), None);
         assert!(local_types(&Clipboard::default()).is_empty());
+    }
+
+    #[test]
+    fn copied_files_are_offered_as_file_managers_take_them() {
+        let c = clipboard(&[(URI_LIST, b"file:///home/me/a%20b.txt\r\nfile:///home/me/c\r\n"), (MIME_TEXT, b"a b.txt")]);
+        assert_eq!(local_types(&c)[..2], ["text/uri-list", "x-special/gnome-copied-files"]);
+        assert_eq!(data_for(&c, "text/uri-list").as_deref(), Some(&b"file:///home/me/a%20b.txt\r\nfile:///home/me/c\r\n"[..]));
+        assert_eq!(
+            data_for(&c, "x-special/gnome-copied-files").as_deref(),
+            Some(&b"copy\nfile:///home/me/a%20b.txt\nfile:///home/me/c"[..])
+        );
+        // Nautilus's own form, a comment and a remote URL: only local files.
+        assert_eq!(file_urls("copy\nfile:///a\n# note\nsftp://host/b\nfile:///c"), "file:///a\r\nfile:///c\r\n");
+        assert_eq!(file_urls("just text"), "");
     }
 
     #[test]

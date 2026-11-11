@@ -25,6 +25,8 @@ mod imp {
         #[template_child]
         pub pairing_banner: TemplateChild<adw::Banner>,
         #[template_child]
+        pub transfer_banner: TemplateChild<adw::Banner>,
+        #[template_child]
         pub menu_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub stack: TemplateChild<adw::ViewStack>,
@@ -55,7 +57,17 @@ mod imp {
         #[template_child]
         pub clipboard_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
+        pub files_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
         pub autostart_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub lock_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub scroll_lock_row: TemplateChild<adw::SwitchRow>,
+        #[template_child]
+        pub delay_row: TemplateChild<adw::SpinRow>,
+        #[template_child]
+        pub corner_row: TemplateChild<adw::SpinRow>,
         #[template_child]
         pub modifier_row: TemplateChild<adw::ComboRow>,
         #[template_child]
@@ -241,6 +253,15 @@ impl RinflowWindow {
                 }
             }
         ));
+        imp.transfer_banner.connect_button_clicked(glib::clone!(
+            #[strong]
+            client,
+            move |_| {
+                if let Some(transfer) = client.snapshot().and_then(|snapshot| snapshot.transfer) {
+                    client.cancel_files(transfer.transfer);
+                }
+            }
+        ));
         imp.capture_retry.connect_clicked(glib::clone!(
             #[strong]
             client,
@@ -260,7 +281,22 @@ impl RinflowWindow {
         self.bind_switch(&imp.sharing_row, "sharing");
         self.bind_switch(&imp.paired_only_row, "paired_only");
         self.bind_switch(&imp.clipboard_row, "clipboard");
+        self.bind_switch(&imp.files_row, "files");
         self.bind_switch(&imp.autostart_row, "launch_at_login");
+        self.bind_switch(&imp.scroll_lock_row, "scroll_lock_locks");
+        self.bind_spin(&imp.delay_row, "switch_delay_ms");
+        self.bind_spin(&imp.corner_row, "corner_guard");
+        // Not a setting: the lock is the agent's state of the moment.
+        imp.lock_row.connect_active_notify(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |row| {
+                if window.imp().applying.get() {
+                    return;
+                }
+                window.imp().client.set_locked(row.is_active());
+            }
+        ));
         imp.modifier_row.connect_selected_notify(glib::clone!(
             #[weak(rename_to = window)]
             self,
@@ -329,6 +365,19 @@ impl RinflowWindow {
                     return;
                 }
                 window.imp().client.update_setting(key, row.is_active().into());
+            }
+        ));
+    }
+
+    fn bind_spin(&self, row: &adw::SpinRow, key: &'static str) {
+        row.connect_value_notify(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |row| {
+                if window.imp().applying.get() {
+                    return;
+                }
+                window.imp().client.update_setting(key, (row.value().round().max(0.0) as u32).into());
             }
         ));
     }
@@ -457,7 +506,14 @@ impl RinflowWindow {
         imp.sharing_row.set_active(settings.sharing);
         imp.paired_only_row.set_active(settings.paired_only);
         imp.clipboard_row.set_active(settings.clipboard);
+        imp.files_row.set_active(settings.files);
+        // Files travel with the clipboard.
+        imp.files_row.set_sensitive(settings.clipboard);
         imp.autostart_row.set_active(snapshot.launch_at_login);
+        imp.lock_row.set_active(snapshot.locked);
+        imp.scroll_lock_row.set_active(settings.scroll_lock_locks);
+        imp.delay_row.set_value(f64::from(settings.switch_delay_ms));
+        imp.corner_row.set_value(f64::from(settings.corner_guard));
         imp.modifier_row
             .set_selected(if settings.modifier_map == ModifierMap::SWAP { 0 } else { 1 });
         imp.theme_row
@@ -480,6 +536,23 @@ impl RinflowWindow {
                 imp.error_banner.set_revealed(true);
             }
             None => imp.error_banner.set_revealed(false),
+        }
+
+        match &snapshot.transfer {
+            Some(transfer) => {
+                let percent = transfer.percent();
+                let more = transfer.items.saturating_sub(1);
+                let title = if more == 0 {
+                    // Translators: {name} is a file or folder's name, {percent} a number from 0 to 100.
+                    trf("Receiving “{name}”: {percent}%", &[("name", &transfer.name), ("percent", &percent)])
+                } else {
+                    // Translators: {name} is a file or folder's name, {more} how many others come with it, {percent} a number from 0 to 100.
+                    trf("Receiving “{name}” and {more} more: {percent}%", &[("name", &transfer.name), ("more", &more), ("percent", &percent)])
+                };
+                imp.transfer_banner.set_title(&title);
+                imp.transfer_banner.set_revealed(true);
+            }
+            None => imp.transfer_banner.set_revealed(false),
         }
 
         apply_backend(&imp.capture_row, &imp.capture_icon, &imp.capture_retry, &snapshot.input.capture, true);

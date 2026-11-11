@@ -25,7 +25,7 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall locale pot check
+.PHONY: all build release test check-po e2e e2e-tray e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall locale pot check
 
 # `make` alone runs the window; `make all` only builds.
 .DEFAULT_GOAL := run
@@ -106,6 +106,11 @@ e2e-persist: build
 # A real desktop as the controlled device, driven by a fake controller.
 e2e-controlled: build
 	python3 tests/e2e_controlled.py ./target/debug/rinflow-agent ./target/debug/fakedesk
+
+# The tray icon against a stand-in StatusNotifierWatcher: registered, its
+# menu read and pressed over D-Bus. Needs dbus and python3-gi.
+e2e-tray: build locale
+	dbus-run-session -- python3 tests/e2e_tray.py ./target/debug/rinflow-agent
 
 locale: $(MO) $(DATA)
 
@@ -198,6 +203,7 @@ check: locale check-po
 install: release locale
 	install -Dm755 target/release/rinflow $(DESTDIR)$(PREFIX)/bin/rinflow
 	install -Dm755 target/release/rinflow-agent $(DESTDIR)$(PREFIX)/bin/rinflow-agent
+	install -Dm755 target/release/rinflowctl $(DESTDIR)$(PREFIX)/bin/rinflowctl
 	install -Dm644 target/data/$(APP_ID).desktop $(DESTDIR)$(PREFIX)/share/applications/$(APP_ID).desktop
 	install -Dm644 target/data/$(APP_ID).metainfo.xml $(DESTDIR)$(PREFIX)/share/metainfo/$(APP_ID).metainfo.xml
 	install -Dm644 data/icons/$(APP_ID).svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/$(APP_ID).svg
@@ -208,7 +214,7 @@ install: release locale
 	@echo "Installed. Start the agent for this user with: systemctl --user enable --now rinflow-agent"
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/rinflow $(DESTDIR)$(PREFIX)/bin/rinflow-agent
+	rm -f $(DESTDIR)$(PREFIX)/bin/rinflow $(DESTDIR)$(PREFIX)/bin/rinflow-agent $(DESTDIR)$(PREFIX)/bin/rinflowctl
 	rm -f $(DESTDIR)$(PREFIX)/share/applications/$(APP_ID).desktop $(DESTDIR)$(PREFIX)/share/metainfo/$(APP_ID).metainfo.xml
 	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/$(APP_ID).svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
 	rm -f $(DESTDIR)$(PREFIX)/lib/systemd/user/rinflow-agent.service

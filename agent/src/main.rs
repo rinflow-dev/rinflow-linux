@@ -12,6 +12,7 @@ mod ipc;
 mod paths;
 mod power;
 mod services;
+mod tray;
 
 use backends::Backends;
 use driver::Driver;
@@ -117,6 +118,11 @@ async fn run() -> i32 {
             // Always offered, so the setting can change at run time; while
             // it is off the agent reports an empty clipboard (see below).
             clipboard: true,
+            // Likewise files: every transfer is offered first (the limit
+            // is zero), and `files_offered` below decides by the setting.
+            files: true,
+            download_directory: Some(paths::download_directory().to_string_lossy().into_owned()),
+            max_auto_receive_bytes: 0,
             identity_path: Some(identity::identity_path(&data).to_string_lossy().into_owned()),
             trusted_peers: trust.peers(),
             require_pairing: preferences.paired_only,
@@ -154,7 +160,15 @@ async fn run() -> i32 {
         arrangement: arrangement.clone(),
         commands: commands_tx,
     });
-    tokio::task::spawn_local(ipc::serve(listener, services));
+    tokio::task::spawn_local(ipc::serve(listener, services.clone()));
+    // The tray's labels are the only text the agent shows by itself.
+    let environment = |name: &str| std::env::var(name).ok().filter(|value| !value.is_empty());
+    let messages_locale = environment("LC_ALL").or_else(|| environment("LC_MESSAGES")).or_else(|| environment("LANG"));
+    rinflow_shell::i18n::init(
+        rinflow_shell::i18n::locale_directory(),
+        rinflow_shell::i18n::system_languages(messages_locale.as_deref(), environment("LANGUAGE").as_deref()),
+    );
+    tray::spawn(services);
     power::spawn(Arc::downgrade(&core));
 
     let (capture_events_tx, mut capture_events) = mpsc::unbounded_channel::<CaptureEvent>();
@@ -168,6 +182,7 @@ async fn run() -> i32 {
         clipboard_events_tx,
     );
     backends.set_clipboard_enabled(preferences.clipboard);
+    backends.set_files_enabled(preferences.clipboard && preferences.files);
     let mut driver = Driver::new(Arc::downgrade(&core), state.clone(), arrangement.clone(), settings.clone(), backends.last_played.clone());
 
     let mut poll = tokio::time::interval(Duration::from_secs(1));
@@ -188,7 +203,7 @@ async fn run() -> i32 {
                     driver.set_capture(backends.capture_commands());
                 }
             }
-            _ = tick.tick(), if driver.driving() => driver.tick(),
+            _ = tick.tick(), if driver.ticking() => driver.tick(),
             json = core_events.recv(), if core_running => {
                 let Some(json) = json else {
                     core_running = false;
@@ -202,6 +217,9 @@ async fn run() -> i32 {
                 driver.core_event(&event);
                 if event["event"] == "clipboard" {
                     received_clipboard(&event, &settings, &core, &backends);
+                }
+                if event["event"] == "files_offered" {
+                    files_offered(&event, &settings, &core, &state);
                 }
                 if matches!(
                     event["event"].as_str(),
@@ -258,6 +276,10 @@ async fn run() -> i32 {
                     if keys.iter().any(|key| key == "sharing") {
                         driver.refresh_barriers();
                     }
+                    if keys.iter().any(|key| key == "clipboard" || key == "files") {
+                        let now = settings.get();
+                        backends.set_files_enabled(now.clipboard && now.files);
+                    }
                     if keys.iter().any(|key| key == "clipboard") {
                         let enabled = settings.get().clipboard;
                         backends.set_clipboard_enabled(enabled);
@@ -270,6 +292,8 @@ async fn run() -> i32 {
                     driver.set_capture(None);
                     backends.retry();
                 }
+                Some(AgentCommand::LockChanged) => driver.refresh_barriers(),
+                Some(AgentCommand::Home) => driver.home(),
                 Some(AgentCommand::Quit) | None => {
                     log::info!("quitting");
                     state.set_quitting();
@@ -323,6 +347,38 @@ fn core_stopped_message(port: u16, detail: &str) -> Text {
             .arg("detail", detail)
     } else {
         msg("Rinflow's core didn't start: {detail}").arg("detail", detail)
+    }
+}
+
+/// Files larger than this in all are not taken without asking, and there
+/// is nothing to ask with yet: they are declined, and the window says so.
+const MAX_RECEIVED_FILES: u64 = 512 * 1024 * 1024;
+
+/// A peer offers the files copied there (every transfer is offered: see
+/// `max_auto_receive_bytes` above). Taken while the user shares files and
+/// they are not too large; declined otherwise, so the setting holds at
+/// once and nothing lands on this device with it off.
+fn files_offered(event: &serde_json::Value, settings: &SettingsStore, core: &Core, state: &SharedState) {
+    let Some(transfer) = event["transfer"].as_u64().and_then(|transfer| u32::try_from(transfer).ok()) else {
+        return;
+    };
+    let size = event["total_size"].as_u64().unwrap_or(0);
+    let now = settings.get();
+    if !(now.clipboard && now.files) {
+        log::info!("files offered by a peer: declined (sharing files is off)");
+        let _ = core.cancel_files(transfer);
+    } else if size > MAX_RECEIVED_FILES {
+        log::info!("files offered by a peer: declined ({size} bytes is over the limit)");
+        let _ = core.cancel_files(transfer);
+        // Translators: {size} is a size in megabytes, {limit} the largest allowed.
+        state.set_error(
+            msg("The copied files ({size} MB) are larger than Rinflow receives ({limit} MB).")
+                .arg("size", (size / (1024 * 1024)).to_string())
+                .arg("limit", (MAX_RECEIVED_FILES / (1024 * 1024)).to_string()),
+        );
+    } else {
+        log::info!("files offered by a peer: receiving {} files, {size} bytes", event["count"].as_u64().unwrap_or(0));
+        let _ = core.accept_files(transfer);
     }
 }
 
