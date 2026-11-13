@@ -30,8 +30,8 @@ pub fn state_directory() -> PathBuf {
     xdg("XDG_STATE_HOME", &[".local", "state"]).join(APP_DIR)
 }
 
-/// The window's socket: `$XDG_RUNTIME_DIR/rinflow/agent.sock`.
-pub fn socket_path() -> PathBuf {
+/// What lives only while the session does: `$XDG_RUNTIME_DIR/rinflow`.
+pub fn runtime_directory() -> PathBuf {
     let runtime = std::env::var_os("XDG_RUNTIME_DIR")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
@@ -40,29 +40,12 @@ pub fn socket_path() -> PathBuf {
             let uid = unsafe { libc::getuid() };
             PathBuf::from(format!("/run/user/{uid}"))
         });
-    runtime.join(APP_DIR).join("agent.sock")
+    runtime.join(APP_DIR)
 }
 
-/// Where files copied on other devices arrive: `Rinflow` in the user's
-/// download folder (`XDG_DOWNLOAD_DIR` in `user-dirs.dirs`, or
-/// `~/Downloads`).
-pub fn download_directory() -> PathBuf {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"));
-    let configured = std::fs::read_to_string(xdg("XDG_CONFIG_HOME", &[".config"]).join("user-dirs.dirs"))
-        .ok()
-        .and_then(|text| {
-            text.lines()
-                .filter_map(|line| line.trim().strip_prefix("XDG_DOWNLOAD_DIR="))
-                .next_back()
-                .map(|value| value.trim().trim_matches('"').to_owned())
-        })
-        .filter(|value| !value.is_empty())
-        .map(|value| match value.strip_prefix("$HOME") {
-            Some(rest) => home.join(rest.trim_start_matches('/')),
-            None => PathBuf::from(value),
-        })
-        .filter(|path| path.is_absolute() && *path != home);
-    configured.unwrap_or_else(|| home.join("Downloads")).join("Rinflow")
+/// The window's socket: `$XDG_RUNTIME_DIR/rinflow/agent.sock`.
+pub fn socket_path() -> PathBuf {
+    runtime_directory().join("agent.sock")
 }
 
 /// `~/.config/autostart`.

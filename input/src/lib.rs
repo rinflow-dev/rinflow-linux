@@ -124,6 +124,9 @@ pub enum ClipboardCommand {
     /// Share copied files too (`text/uri-list`): while off, a file list on
     /// the clipboard is not read.
     Files(bool),
+    /// The files offered from a peer are no longer there: if they are still
+    /// what this session offers, the clipboard is emptied.
+    WithdrawFiles,
 }
 
 /// What the clipboard of the emulation session reports.

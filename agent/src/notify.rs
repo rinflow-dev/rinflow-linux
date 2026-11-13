@@ -1,5 +1,5 @@
 //! Desktop notifications from the agent, for what needs the user while no
-//! window is open: a device asking to pair, and files that have arrived.
+//! window is open: a device asking to pair.
 //!
 //! Sent straight to `org.freedesktop.Notifications` rather than through
 //! the notification portal: the portal tells applications apart by their
@@ -19,21 +19,13 @@ use crate::services::Services;
 use futures_util::StreamExt;
 use rinflow_shell::i18n::{self, tr, trf};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::watch;
 use zbus::zvariant::Value;
 
 /// The same device asking again this soon is not announced again.
 const SAME_PEER_PAUSE: Duration = Duration::from_secs(30);
-
-/// What the main loop reports for a notification.
-#[derive(Debug)]
-pub enum Notice {
-    /// Copied files from a peer are on disk (the core's `files_received`).
-    FilesReceived { paths: Vec<PathBuf> },
-}
 
 #[zbus::proxy(
     interface = "org.freedesktop.Notifications",
@@ -75,7 +67,7 @@ type PairingKey = (String, String);
 
 /// Starts the notifications task. Returns at once; without a session bus
 /// or a notification service there are simply none.
-pub fn spawn(services: Rc<Services>, mut notices: mpsc::UnboundedReceiver<Notice>) {
+pub fn spawn(services: Rc<Services>) {
     tokio::task::spawn_local(async move {
         let bus = match zbus::Connection::session().await {
             Ok(bus) => bus,
@@ -102,8 +94,6 @@ pub fn spawn(services: Rc<Services>, mut notices: mpsc::UnboundedReceiver<Notice
         // That notification was taken down because a window opened.
         let mut withdrawn = false;
         let mut announced: HashMap<String, Instant> = HashMap::new();
-        // Folders to open for "files received" notifications still shown.
-        let mut folders: HashMap<u32, PathBuf> = HashMap::new();
         let mut activation: HashMap<u32, String> = HashMap::new();
         let mut language = String::new();
 
@@ -133,7 +123,7 @@ pub fn spawn(services: Rc<Services>, mut notices: mpsc::UnboundedReceiver<Notice
                     // Translators: {name} is another device's name.
                     let summary = trf("{name} wants to pair", &[("name", &name)]);
                     let (open, reject) = (tr("Open Rinflow"), tr("Reject"));
-                    match show(&service, &summary, &tr("Open Rinflow to compare the pairing code."), &["default", &open, "reject", &reject], true).await {
+                    match show(&service, &summary, &tr("Open Rinflow to compare the pairing code."), &["default", &open, "reject", &reject]).await {
                         Ok(id) => {
                             announced.insert(key.0.clone(), Instant::now());
                             pairing = Some((key, id));
@@ -177,70 +167,25 @@ pub fn spawn(services: Rc<Services>, mut notices: mpsc::UnboundedReceiver<Notice
                         } else {
                             crate::tray::open_window(token);
                         }
-                    } else if let Some(folder) = folders.remove(&args.id) {
-                        open_folder(&folder, token);
                     }
                 }
                 signal = closed.next() => {
                     let Some(signal) = signal else { break };
                     if let Ok(args) = signal.args() {
-                        folders.remove(&args.id);
                         activation.remove(&args.id);
                     }
                 }
-                notice = notices.recv() => match notice {
-                    Some(Notice::FilesReceived { paths }) => {
-                        let Some(first) = paths.first() else { continue };
-                        let name = first.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
-                        let more = paths.len() - 1;
-                        let body = if more == 0 {
-                            // Translators: {name} is a file or folder's name.
-                            trf("“{name}” is in the Rinflow folder in Downloads.", &[("name", &name)])
-                        } else {
-                            // Translators: {name} is a file or folder's name, {more} how many others came with it.
-                            trf("“{name}” and {more} more are in the Rinflow folder in Downloads.", &[("name", &name), ("more", &more)])
-                        };
-                        let open = tr("Open Folder");
-                        match show(&service, &tr("Files received"), &body, &["default", &open], false).await {
-                            Ok(id) => {
-                                if let Some(folder) = first.parent() {
-                                    folders.insert(id, folder.to_path_buf());
-                                }
-                            }
-                            Err(error) => log::info!("received files not announced: {error}"),
-                        }
-                    }
-                    None => break,
-                },
             }
         }
     });
 }
 
-/// Shows one notification under Rinflow's name; `stays` for one that waits
-/// for the user rather than timing out.
-async fn show(service: &NotificationsProxy<'_>, summary: &str, body: &str, actions: &[&str], stays: bool) -> zbus::Result<u32> {
+/// Shows one notification under Rinflow's name, which stays until the
+/// user answers it.
+async fn show(service: &NotificationsProxy<'_>, summary: &str, body: &str, actions: &[&str]) -> zbus::Result<u32> {
     let mut hints = HashMap::new();
     hints.insert("desktop-entry", Value::from(crate::paths::APP_ID));
-    // Normal urgency even for one that stays: a request any device on the
-    // network can send must not get past "Do Not Disturb".
-    service
-        .notify("Rinflow", 0, crate::paths::APP_ID, summary, body, actions, hints, if stays { 0 } else { -1 })
-        .await
-}
-
-fn open_folder(folder: &std::path::Path, token: Option<String>) {
-    let mut command = std::process::Command::new("xdg-open");
-    command.arg(folder);
-    if let Some(token) = token {
-        command.env("XDG_ACTIVATION_TOKEN", token);
-    }
-    match command.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn() {
-        Ok(mut child) => {
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
-        }
-        Err(error) => log::warn!("cannot open {}: {error}", folder.display()),
-    }
+    // Normal urgency all the same: a request any device on the network can
+    // send must not get past "Do Not Disturb".
+    service.notify("Rinflow", 0, crate::paths::APP_ID, summary, body, actions, hints, 0).await
 }

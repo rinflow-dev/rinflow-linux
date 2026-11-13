@@ -15,7 +15,7 @@ or found broken.
 - **Being controlled**: a peer's input is played through the RemoteDesktop
   portal + libei, or gamescope's EIS socket in Steam Deck's Gaming Mode.
 - **Clipboard** (new): text, HTML and PNG follow the pointer both ways,
-  through the Clipboard portal of the RemoteDesktop session; off by default;
+  through the Clipboard portal of the RemoteDesktop session; on by default;
   a password manager's secrets stay on the device.
 - **The desktop coming and going** (new): the user service starts before the
   desktop and finds it through the systemd user manager's environment, and
@@ -66,16 +66,17 @@ or found broken.
   pending pairing can't be replaced by another device's request, Enter no
   longer accepts it, and Accept waits 1.5 s after the code is shown.
 - **Copied files** (new): files and folders copied in a file manager go
-  along with the clipboard, into `Downloads/Rinflow` on the other device
-  and onto its clipboard; off by default, up to 512 MiB, with progress and
-  Cancel in the window.
+  along with the clipboard, with the clipboard's switch. On the other
+  device they are only described; what is pasted there is read from this
+  one then (a FUSE file system on Linux, `agent/src/remote_files.rs`),
+  with progress and Cancel in the window. Nothing is downloaded by itself.
 - **Staying on one screen** (new): a lock (Settings, tray, `rinflowctl
   lock`, Scroll Lock while driving), a delay before crossing and a margin
   around screen corners.
 - **`rinflowctl`** (new): status, layout, placing devices by side or by
   coordinates, pairing, the lock, settings, from a terminal.
-- **Notifications** (new): a pairing request while no window is open,
-  and files that arrived, as desktop notifications from the agent.
+- **Notifications** (new): a pairing request while no window is open, as
+  a desktop notification from the agent.
 - **Tray icon** (new): a StatusNotifierItem from the agent.
 - **When the core cannot start** (new): its port taken, say, the agent stays
   up and the window says why and what to do, instead of the agent exiting.
@@ -127,13 +128,16 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
 
 ## Known limits
 
-- Copied files over 512 MiB are declined (there is nothing to ask the
-  user with yet). In the Flatpak, sending files needs access to where they
-  are (`--filesystem=home`). Dragging files across the edge is not done.
+- Pasting files copied on another device needs FUSE (`fusermount3`), so it
+  does not work from the Flatpak; sending from it needs access to where
+  the files are (`--filesystem=home`). A peer that cannot be read on demand
+  (an older Rinflow) has its files declined. Dragging files across the edge
+  is not done.
+- Pasting a peer's files has been run between two Linux agents
+  (`make e2e-clipboard`, files read through the mount), not yet with a real
+  file manager, nor with a Mac or a Windows PC.
 - A shortcut cannot send the pointer to another device: the InputCapture
   portal starts a capture only at an edge. It can bring it home.
-- The "files received" notification is not covered by a test (the
-  pairing one is, `make e2e-notify`).
 - The tray icon, notifications, the lock, the crossing delay and copied files have only
   been run against the stand-in desktop (tests/fakedesk) and a stand-in
   tray host, not yet on a real GNOME or Plasma session.

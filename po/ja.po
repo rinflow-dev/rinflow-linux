@@ -15,11 +15,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: agent/src/backends.rs:267
+#: agent/src/backends.rs:275
 msgid "The desktop is asking whether Rinflow may capture input"
 msgstr "Rinflow に入力のキャプチャーを許可するか、デスクトップが確認しています"
 
-#: agent/src/backends.rs:272
+#: agent/src/backends.rs:280
 msgid ""
 "Permission to capture input was not given. This device can't control others "
 "until it is requested again and allowed."
@@ -27,11 +27,11 @@ msgstr ""
 "入力をキャプチャーする許可が得られませんでした。もう一度要求して許可されるま"
 "で、このデバイスから他のデバイスを操作することはできません。"
 
-#: agent/src/backends.rs:294
+#: agent/src/backends.rs:302
 msgid "The desktop is asking whether Rinflow may control this device"
 msgstr "Rinflow にこのデバイスの操作を許可するか、デスクトップが確認しています"
 
-#: agent/src/backends.rs:303
+#: agent/src/backends.rs:311
 msgid ""
 "Permission to control this device was not given. Other devices can't control "
 "it until it is requested again and allowed."
@@ -39,15 +39,15 @@ msgstr ""
 "このデバイスを操作する許可が得られませんでした。もう一度要求して許可されるま"
 "で、他のデバイスからこのデバイスを操作することはできません。"
 
-#: agent/src/backends.rs:356
+#: agent/src/backends.rs:364
 msgid "Connecting to the desktop's input capture portal…"
 msgstr "デスクトップの入力キャプチャーポータルに接続しています…"
 
-#: agent/src/backends.rs:393
+#: agent/src/backends.rs:401
 msgid "Connecting input playback…"
 msgstr "入力の再生機能に接続しています…"
 
-#: agent/src/backends.rs:417
+#: agent/src/backends.rs:425
 msgid ""
 "In Gaming Mode this device can be controlled by others, but can't control "
 "them."
@@ -55,18 +55,18 @@ msgstr ""
 "ゲームモードでは、このデバイスは他のデバイスから操作できますが、他のデバイス"
 "を操作することはできません。"
 
-#: agent/src/backends.rs:421
+#: agent/src/backends.rs:429
 msgid "X11 sessions aren't supported yet; use a Wayland session."
 msgstr ""
 "X11 セッションにはまだ対応していません。Wayland セッションを使用してくださ"
 "い。"
 
-#: agent/src/backends.rs:426
+#: agent/src/backends.rs:434
 msgid "No graphical session was found."
 msgstr "グラフィカルセッションが見つかりませんでした。"
 
 #. Translators: {detail} is the system's error message, in English.
-#: agent/src/main.rs:356
+#: agent/src/main.rs:367
 msgid ""
 "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
 "running. Choose another port in Settings, then restart the agent. ({detail})"
@@ -75,52 +75,33 @@ msgstr ""
 "可能性があります。「設定」で別のポートを選び、バックグラウンドサービスを再起"
 "動してください。({detail})"
 
-#: agent/src/main.rs:360
+#: agent/src/main.rs:371
 msgid "Rinflow's core didn't start: {detail}"
 msgstr "Rinflow のコアを起動できませんでした: {detail}"
 
-#: agent/src/main.rs:386
+#: agent/src/main.rs:417
 msgid ""
-"The copied files ({size} MB) are larger than Rinflow receives ({limit} MB)."
+"Files copied on {name} can't be pasted here: update Rinflow on that device."
 msgstr ""
-"コピーされたファイル（{size} MB）は、Rinflow が受信できるサイズ（{limit} MB）"
-"を超えています。"
+"{name} でコピーしたファイルはここに貼り付けられません。そのデバイスの "
+"Rinflow を更新してください。"
 
 #. Translators: {name} is another device's name.
-#: agent/src/notify.rs:134
+#: agent/src/notify.rs:124
 msgid "{name} wants to pair"
 msgstr "「{name}」がペアリングを求めています"
 
-#: agent/src/notify.rs:135 agent/src/tray.rs:133
+#: agent/src/notify.rs:125 agent/src/tray.rs:133
 msgid "Open Rinflow"
 msgstr "Rinflow を開く"
 
-#: agent/src/notify.rs:135 app/src/window.rs:816
+#: agent/src/notify.rs:125 app/src/window.rs:810
 msgid "Reject"
 msgstr "拒否"
 
-#: agent/src/notify.rs:136
+#: agent/src/notify.rs:126
 msgid "Open Rinflow to compare the pairing code."
 msgstr "Rinflow を開いてペアリングコードを確認してください。"
-
-#. Translators: {name} is a file or folder's name.
-#: agent/src/notify.rs:198
-msgid "“{name}” is in the Rinflow folder in Downloads."
-msgstr "「{name}」は「ダウンロード」内の Rinflow フォルダーにあります。"
-
-#. Translators: {name} is a file or folder's name, {more} how many others came with it.
-#: agent/src/notify.rs:201
-msgid "“{name}” and {more} more are in the Rinflow folder in Downloads."
-msgstr ""
-"「{name}」ほか {more} 件は「ダウンロード」内の Rinflow フォルダーにあります。"
-
-#: agent/src/notify.rs:203
-msgid "Open Folder"
-msgstr "フォルダーを開く"
-
-#: agent/src/notify.rs:204
-msgid "Files received"
-msgstr "ファイルを受信しました"
 
 #: agent/src/services.rs:43
 msgid "launch_at_login must be true or false"
@@ -165,7 +146,7 @@ msgstr "{count} 台のデバイスと接続中"
 msgid "Share mouse and keyboard"
 msgstr "マウスとキーボードを共有"
 
-#: agent/src/tray.rs:123 data/ui/window.blp:169
+#: agent/src/tray.rs:123 data/ui/window.blp:164
 msgid "Keep the pointer on this screen"
 msgstr "ポインターをこの画面に固定"
 
@@ -209,15 +190,15 @@ msgstr "ここにドラッグすると配置を解除します"
 msgid "Connect a device, then drag it next to your screen here"
 msgstr "デバイスを接続したら、ここで画面の横にドラッグします"
 
-#: app/src/canvas.rs:1154 app/src/window.rs:608
+#: app/src/canvas.rs:1154 app/src/window.rs:602
 msgid "Connected"
 msgstr "接続済み"
 
-#: app/src/canvas.rs:1156 app/src/window.rs:625
+#: app/src/canvas.rs:1156 app/src/window.rs:619
 msgid "Online"
 msgstr "オンライン"
 
-#: app/src/canvas.rs:1158 app/src/window.rs:626
+#: app/src/canvas.rs:1158 app/src/window.rs:620
 msgid "Offline"
 msgstr "オフライン"
 
@@ -231,146 +212,146 @@ msgstr "1 組のマウスとキーボードで、すべてのコンピュータ�
 msgid "translator-credits"
 msgstr "translator-credits"
 
-#: app/src/window.rs:432
+#: app/src/window.rs:429
 msgid "Swap ⌘ and Control (⌘C copies here)"
 msgstr "⌘ と Control を入れ替える (⌘C でここでもコピー)"
 
-#: app/src/window.rs:432
+#: app/src/window.rs:429
 msgid "Keep each key in its place"
 msgstr "各キーをそのまま使う"
 
-#: app/src/window.rs:434 app/src/window.rs:438
+#: app/src/window.rs:431 app/src/window.rs:435
 msgid "Follow the system"
 msgstr "システムに従う"
 
-#: app/src/window.rs:434
+#: app/src/window.rs:431
 msgid "Light"
 msgstr "ライト"
 
-#: app/src/window.rs:434
+#: app/src/window.rs:431
 msgid "Dark"
 msgstr "ダーク"
 
-#: app/src/window.rs:477
+#: app/src/window.rs:474
 msgid "Starting the Rinflow agent…"
 msgstr "Rinflow バックグラウンドサービスを起動しています…"
 
 #. Translators: {name} is a file or folder's name, {percent} a number from 0 to 100.
-#: app/src/window.rs:547
+#: app/src/window.rs:541
 msgid "Receiving “{name}”: {percent}%"
 msgstr "「{name}」を受信中: {percent}%"
 
 #. Translators: {name} is a file or folder's name, {more} how many others come with it, {percent} a number from 0 to 100.
-#: app/src/window.rs:550
+#: app/src/window.rs:544
 msgid "Receiving “{name}” and {more} more: {percent}%"
 msgstr "「{name}」ほか {more} 件を受信中: {percent}%"
 
-#: app/src/window.rs:569
+#: app/src/window.rs:563
 msgid "Not started yet"
 msgstr "まだ起動していません"
 
 #. Translators: the time a message takes to the other device and back.
-#: app/src/window.rs:612
+#: app/src/window.rs:606
 msgid "{ms} ms"
 msgstr "{ms} ミリ秒"
 
-#: app/src/window.rs:616
+#: app/src/window.rs:610
 msgid "controlling this device"
 msgstr "このデバイスを操作中"
 
-#: app/src/window.rs:620
+#: app/src/window.rs:614
 msgid "you are controlling it"
 msgstr "こちらから操作中"
 
-#: app/src/window.rs:624 app/src/window.rs:706
+#: app/src/window.rs:618 app/src/window.rs:700
 msgid "Connecting…"
 msgstr "接続しています…"
 
-#: app/src/window.rs:633
+#: app/src/window.rs:627
 msgid "not placed"
 msgstr "未配置"
 
-#: app/src/window.rs:637
+#: app/src/window.rs:631
 msgid "not paired"
 msgstr "未ペアリング"
 
-#: app/src/window.rs:643
+#: app/src/window.rs:637
 msgid "Disconnect"
 msgstr "切断"
 
-#: app/src/window.rs:643 app/src/window.rs:706
+#: app/src/window.rs:637 app/src/window.rs:700
 msgid "Connect"
 msgstr "接続"
 
-#: app/src/window.rs:656
+#: app/src/window.rs:650
 msgid "Place on the left"
 msgstr "左に配置"
 
-#: app/src/window.rs:657
+#: app/src/window.rs:651
 msgid "Place on the right"
 msgstr "右に配置"
 
-#: app/src/window.rs:658
+#: app/src/window.rs:652
 msgid "Place above"
 msgstr "上に配置"
 
-#: app/src/window.rs:659
+#: app/src/window.rs:653
 msgid "Place below"
 msgstr "下に配置"
 
-#: app/src/window.rs:666
+#: app/src/window.rs:660
 msgid "Remove placement"
 msgstr "配置を解除"
 
-#: app/src/window.rs:668
+#: app/src/window.rs:662
 msgid "Forget this device"
 msgstr "このデバイスを削除"
 
-#: app/src/window.rs:682
+#: app/src/window.rs:676
 msgid "No devices yet"
 msgstr "まだデバイスがありません"
 
-#: app/src/window.rs:683
+#: app/src/window.rs:677
 msgid "Devices that connect once stay here. Nearby devices are listed below."
 msgstr ""
 "一度接続したデバイスはここに残ります。近くのデバイスは下に表示されます。"
 
-#: app/src/window.rs:720
+#: app/src/window.rs:714
 msgid "found"
 msgstr "見つかりました"
 
-#: app/src/window.rs:721
+#: app/src/window.rs:715
 msgid "no response"
 msgstr "応答なし"
 
-#: app/src/window.rs:722
+#: app/src/window.rs:716
 msgid "address not found"
 msgstr "アドレスが見つかりません"
 
-#: app/src/window.rs:723
+#: app/src/window.rs:717
 msgid "searching…"
 msgstr "検索しています…"
 
-#: app/src/window.rs:727
+#: app/src/window.rs:721
 msgid "Added by address"
 msgstr "アドレスで追加"
 
-#: app/src/window.rs:735
+#: app/src/window.rs:729
 msgid "Remove this address"
 msgstr "このアドレスを削除"
 
-#: app/src/window.rs:760
+#: app/src/window.rs:754
 msgid "Nothing nearby"
 msgstr "近くにデバイスはありません"
 
-#: app/src/window.rs:761
+#: app/src/window.rs:755
 msgid "Open Rinflow on another device on this network, or add it by address."
 msgstr ""
 "同じネットワーク上の別のデバイスで Rinflow を開くか、アドレスで追加してくださ"
 "い。"
 
 #. Translators: {name} is the other device's name, {code} the six digits both devices show.
-#: app/src/window.rs:790
+#: app/src/window.rs:784
 msgid ""
 "Waiting for {name} to accept the pairing (code {code}). Accept it there too."
 msgstr ""
@@ -378,27 +359,27 @@ msgstr ""
 "認してください。"
 
 #. Translators: {name} is the other device's name.
-#: app/src/window.rs:803
+#: app/src/window.rs:797
 msgid "Pair with {name}"
 msgstr "{name} とペアリング"
 
-#: app/src/window.rs:804
+#: app/src/window.rs:798
 msgid ""
 "Check that the other device shows the same six digits, then accept on both."
 msgstr ""
 "相手のデバイスに同じ 6 桁の数字が表示されていることを確認し、両方で承認してく"
 "ださい。"
 
-#: app/src/window.rs:818
+#: app/src/window.rs:812
 msgid "Accept"
 msgstr "承認"
 
 #. Translators: {name} is a device's name.
-#: app/src/window.rs:885
+#: app/src/window.rs:879
 msgid "Forget {name}?"
 msgstr "{name} を削除しますか?"
 
-#: app/src/window.rs:886
+#: app/src/window.rs:880
 msgid ""
 "It is disconnected, unplaced and unpaired. It shows up again as a nearby "
 "device while it is online."
@@ -406,20 +387,20 @@ msgstr ""
 "接続が切断され、配置とペアリングが解除されます。オンラインの間は、近くのデバ"
 "イスとして再び表示されます。"
 
-#: app/src/window.rs:889 app/src/window.rs:915 data/ui/window.blp:43
+#: app/src/window.rs:883 app/src/window.rs:909 data/ui/window.blp:43
 #: data/ui/window.blp:49
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: app/src/window.rs:890
+#: app/src/window.rs:884
 msgid "Forget"
 msgstr "削除"
 
-#: app/src/window.rs:906
+#: app/src/window.rs:900
 msgid "Add a Device by Address"
 msgstr "アドレスでデバイスを追加"
 
-#: app/src/window.rs:907
+#: app/src/window.rs:901
 msgid ""
 "For networks that don't carry discovery (guest Wi-Fi, VPNs): the other "
 "device's IP address or name. Only one of the two needs the other's address."
@@ -428,28 +409,28 @@ msgstr ""
 "手のデバイスの IP アドレスまたは名前を入力します。入力はどちらか一方のデバイ"
 "スだけで十分です。"
 
-#: app/src/window.rs:911
+#: app/src/window.rs:905
 msgid "Address"
 msgstr "アドレス"
 
-#: app/src/window.rs:916 data/ui/window.blp:118
+#: app/src/window.rs:910 data/ui/window.blp:118
 msgid "Add"
 msgstr "追加"
 
-#: app/src/window.rs:957
+#: app/src/window.rs:951
 msgid "Ready: move the pointer off the edge toward a placed device."
 msgstr ""
 "準備完了: 配置したデバイスの方向へ、ポインターを画面の端から出してください。"
 
-#: app/src/window.rs:959
+#: app/src/window.rs:953
 msgid "Ready: placed devices can move their pointer here."
 msgstr "準備完了: 配置されたデバイスから、ポインターをここへ移動できます。"
 
-#: app/src/window.rs:967
+#: app/src/window.rs:961
 msgid "Connecting to the desktop…"
 msgstr "デスクトップに接続しています…"
 
-#: app/src/window.rs:989 data/ui/window.blp:151
+#: app/src/window.rs:983
 msgid ""
 "Text and images copied here go along when the pointer moves to another "
 "device, and come back with it."
@@ -457,7 +438,7 @@ msgstr ""
 "ここでコピーしたテキストや画像は、ポインターと一緒に別のデバイスへ移り、ポイ"
 "ンターが戻ると一緒に戻ってきます。"
 
-#: app/src/window.rs:991
+#: app/src/window.rs:985
 msgid ""
 "This desktop doesn't share its clipboard with Rinflow. It needs the "
 "clipboard portal (GNOME 45 or Plasma 6.2 and newer)."
@@ -465,7 +446,7 @@ msgstr ""
 "このデスクトップは Rinflow とクリップボードを共有しません。クリップボードポー"
 "タル (GNOME 45、Plasma 6.2 以降) が必要です。"
 
-#: app/src/window.rs:993
+#: app/src/window.rs:987
 msgid ""
 "Available once other devices may control this one: the clipboard comes with "
 "that permission."
@@ -473,31 +454,31 @@ msgstr ""
 "他のデバイスからの操作を許可すると使用できます。クリップボードはその許可に含"
 "まれます。"
 
-#: app/src/window.rs:1010
+#: app/src/window.rs:1004
 msgid "Device"
 msgstr "デバイス"
 
-#: app/src/window.rs:1017
+#: app/src/window.rs:1011
 msgid "on the left"
 msgstr "左側"
 
-#: app/src/window.rs:1018
+#: app/src/window.rs:1012
 msgid "on the right"
 msgstr "右側"
 
-#: app/src/window.rs:1019
+#: app/src/window.rs:1013
 msgid "above"
 msgstr "上側"
 
-#: app/src/window.rs:1020
+#: app/src/window.rs:1014
 msgid "below"
 msgstr "下側"
 
-#: app/src/window.rs:1038
+#: app/src/window.rs:1032
 msgid "_Quit Rinflow Agent"
 msgstr "Rinflow バックグラウンドサービスを終了(_Q)"
 
-#: app/src/window.rs:1041
+#: app/src/window.rs:1035
 msgid "_About Rinflow"
 msgstr "Rinflow について(_A)"
 
@@ -579,39 +560,37 @@ msgstr "新しいデバイスは、まず 6 桁のコードでペアリングす
 msgid "Share the clipboard"
 msgstr "クリップボードを共有"
 
-#: data/ui/window.blp:155
-msgid "Share copied files"
-msgstr "コピーしたファイルを共有"
-
-#: data/ui/window.blp:156
+#: data/ui/window.blp:151
 msgid ""
-"Files copied on one device can be pasted on the next. Received files are "
-"kept in the Rinflow folder in Downloads."
+"Text, images and files copied here go along when the pointer moves to "
+"another device, and come back with it. Files are transferred when they are "
+"pasted."
 msgstr ""
-"一方のデバイスでコピーしたファイルを、もう一方で貼り付けられます。受信した"
-"ファイルは「ダウンロード」内の Rinflow フォルダーに保存されます。"
+"ここでコピーしたテキスト、画像、ファイルは、ポインターと一緒に別のデバイスへ"
+"移り、ポインターが戻ると一緒に戻ってきます。ファイルは貼り付けたときに転送さ"
+"れます。"
 
-#: data/ui/window.blp:160
+#: data/ui/window.blp:155
 msgid "Start when I sign in"
 msgstr "ログイン時に起動"
 
-#: data/ui/window.blp:165
+#: data/ui/window.blp:160
 msgid "Crossing"
 msgstr "画面間の移動"
 
-#: data/ui/window.blp:166
+#: data/ui/window.blp:161
 msgid "When the pointer may leave this screen for another device."
 msgstr "ポインターがこの画面から別のデバイスへ移る条件。"
 
-#: data/ui/window.blp:170
+#: data/ui/window.blp:165
 msgid "No edge leads to another device until this is turned off."
 msgstr "オフにするまで、どの端からも別のデバイスへ移りません。"
 
-#: data/ui/window.blp:174
+#: data/ui/window.blp:169
 msgid "Scroll Lock keeps the pointer"
 msgstr "Scroll Lock でポインターを固定"
 
-#: data/ui/window.blp:175
+#: data/ui/window.blp:170
 msgid ""
 "While you control another device, Scroll Lock keeps the pointer there until "
 "it is pressed again."
@@ -619,125 +598,125 @@ msgstr ""
 "別のデバイスを操作中に Scroll Lock を押すと、もう一度押すまでポインターがその"
 "デバイスにとどまります。"
 
-#: data/ui/window.blp:179
+#: data/ui/window.blp:174
 msgid "Delay before crossing"
 msgstr "移動までの待ち時間"
 
-#: data/ui/window.blp:180
+#: data/ui/window.blp:175
 msgid ""
 "How long the pointer must push against an edge, in milliseconds. 0 crosses "
 "at once."
 msgstr "ポインターを端に押し当て続ける時間（ミリ秒）。0 ですぐに移動します。"
 
-#: data/ui/window.blp:190
+#: data/ui/window.blp:185
 msgid "Corner margin"
 msgstr "画面の角の余白"
 
-#: data/ui/window.blp:191
+#: data/ui/window.blp:186
 msgid ""
 "Edges this close to a corner of the screen don't cross, in points. 0 turns "
 "it off."
 msgstr ""
 "画面の角からこの距離以内の端では移動しません（ポイント単位）。0 でオフ。"
 
-#: data/ui/window.blp:202
+#: data/ui/window.blp:197
 msgid "Keyboard"
 msgstr "キーボード"
 
-#: data/ui/window.blp:205
+#: data/ui/window.blp:200
 msgid "Modifier keys from a Mac"
 msgstr "Mac からの修飾キー"
 
-#: data/ui/window.blp:206
+#: data/ui/window.blp:201
 msgid "What ⌘ and Control play as when a Mac controls this device."
 msgstr "Mac からこのデバイスを操作するときの ⌘ と Control の割り当てです。"
 
-#: data/ui/window.blp:211
+#: data/ui/window.blp:206
 msgid "Appearance"
 msgstr "外観"
 
-#: data/ui/window.blp:214
+#: data/ui/window.blp:209
 msgid "Theme"
 msgstr "テーマ"
 
-#: data/ui/window.blp:218
+#: data/ui/window.blp:213
 msgid "Language"
 msgstr "言語"
 
-#: data/ui/window.blp:223
+#: data/ui/window.blp:218
 msgid "Network"
 msgstr "ネットワーク"
 
-#: data/ui/window.blp:226
+#: data/ui/window.blp:221
 msgid "Control port (UDP)"
 msgstr "制御ポート (UDP)"
 
-#: data/ui/window.blp:227
+#: data/ui/window.blp:222
 msgid "Applies after the agent restarts."
 msgstr "バックグラウンドサービスの再起動後に反映されます。"
 
-#: data/ui/window.blp:244
+#: data/ui/window.blp:239
 msgid "About This Device"
 msgstr "このデバイスについて"
 
-#: data/ui/window.blp:247
+#: data/ui/window.blp:242
 msgid "Name"
 msgstr "名前"
 
-#: data/ui/window.blp:253
+#: data/ui/window.blp:248
 msgid "Certificate fingerprint"
 msgstr "証明書のフィンガープリント"
 
-#: data/ui/window.blp:260
+#: data/ui/window.blp:255
 msgid "Agent"
 msgstr "バックグラウンドサービス"
 
-#: shell/src/settings.rs:118
+#: shell/src/settings.rs:116
 msgid "Settings couldn't be read"
 msgstr "設定を読み込めませんでした"
 
-#: shell/src/settings.rs:122
+#: shell/src/settings.rs:120
 msgid "Unknown setting: {key}"
 msgstr "不明な設定項目です: {key}"
 
-#: shell/src/settings.rs:127
+#: shell/src/settings.rs:125
 msgid "Invalid setting value: {error}"
 msgstr "設定値が無効です: {error}"
 
-#: shell/src/settings.rs:130
+#: shell/src/settings.rs:128
 msgid "Theme must be system, light, or dark"
 msgstr "テーマは「システムに従う」「ライト」「ダーク」のいずれかにしてください"
 
-#: shell/src/settings.rs:133
+#: shell/src/settings.rs:131
 msgid "Language must be system, Simplified Chinese, Japanese, or English"
 msgstr ""
 "言語は「システムに従う」、簡体字中国語、日本語、英語のいずれかにしてください"
 
-#: shell/src/settings.rs:138
+#: shell/src/settings.rs:136
 msgid "Ports must be between 1024 and 65535 and not the discovery port {port}"
 msgstr ""
 "ポートは 1024〜65535 の範囲で、検出用のポート {port} 以外にしてください"
 
-#: shell/src/settings.rs:142
+#: shell/src/settings.rs:140
 msgid "You can add up to {count} addresses"
 msgstr "アドレスは {count} 個まで追加できます"
 
-#: shell/src/settings.rs:149
+#: shell/src/settings.rs:147
 msgid ""
 "“{address}” isn't a valid address. Enter an IP address or a device name."
 msgstr ""
 "「{address}」は有効なアドレスではありません。IP アドレスまたはデバイス名を入"
 "力してください。"
 
-#: shell/src/settings.rs:152
+#: shell/src/settings.rs:150
 msgid "The crossing delay can be at most {max} ms"
 msgstr "移動までの待ち時間は最大 {max} ミリ秒です"
 
-#: shell/src/settings.rs:155
+#: shell/src/settings.rs:153
 msgid "The corner margin can be at most {max} points"
 msgstr "画面の角の余白は最大 {max} ポイントです"
 
-#: shell/src/settings.rs:158
+#: shell/src/settings.rs:156
 msgid ""
 "Pointer speed must be between 0.25× and 4×, and scroll speed between 0.25× "
 "and 5×"
@@ -751,11 +730,11 @@ msgid "{name}: {message}"
 msgstr "{name}: {message}"
 
 #. Translators: {reason} is the cause, in English.
-#: shell/src/state.rs:549
+#: shell/src/state.rs:550
 msgid "The copied files couldn't be received: {reason}"
 msgstr "コピーされたファイルを受信できませんでした: {reason}"
 
-#: shell/src/state.rs:608
+#: shell/src/state.rs:609
 msgid ""
 "The other device stopped responding (it may be asleep or offline). It "
 "reconnects when it's back."
@@ -763,7 +742,7 @@ msgstr ""
 "相手のデバイスが応答しなくなりました (スリープ中かオフラインの可能性がありま"
 "す)。復帰すると自動的に再接続します。"
 
-#: shell/src/state.rs:609
+#: shell/src/state.rs:610
 msgid ""
 "The other device refused the connection. It may have removed this device, or "
 "it only allows paired devices. To pair again, select Connect in the device "
@@ -773,7 +752,7 @@ msgstr ""
 "みのデバイスのみ許可されている可能性があります。もう一度ペアリングするには、"
 "デバイスのメニューで「接続」を選んでください。"
 
-#: shell/src/state.rs:610
+#: shell/src/state.rs:611
 msgid ""
 "The device's identity certificate changed, so the connection was refused. If "
 "it was reinstalled, remove it in the device menu and pair again."
@@ -782,21 +761,21 @@ msgstr ""
 "された場合は、デバイスのメニューで「このデバイスを削除」を選び、もう一度ペア"
 "リングしてください。"
 
-#: shell/src/state.rs:612
+#: shell/src/state.rs:613
 msgid "The other device declined pairing."
 msgstr "相手のデバイスがペアリングを拒否しました。"
 
-#: shell/src/state.rs:614
+#: shell/src/state.rs:615
 msgid "Pairing timed out. It wasn't confirmed within two minutes."
 msgstr "ペアリングがタイムアウトしました。2 分以内に確認されませんでした。"
 
-#: shell/src/state.rs:615
+#: shell/src/state.rs:616
 msgid "An unpaired device was disconnected (“Only paired devices” is on)."
 msgstr ""
 "ペアリングされていないデバイスを切断しました (「ペアリング済みのデバイスの"
 "み」がオンです)。"
 
-#: shell/src/state.rs:616
+#: shell/src/state.rs:617
 msgid "Unpaired."
 msgstr "ペアリングを解除しました。"
 

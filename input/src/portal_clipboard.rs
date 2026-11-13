@@ -16,8 +16,8 @@
 //!
 //! Copied files are a fourth, `text/uri-list`: read here as the file
 //! manager offers it (the core turns the paths into a manifest; they never
-//! leave this device), and, for files a peer sent, offered to file managers
-//! with the paths the core saved them under.
+//! leave this device), and, for files a peer offers, offered to file
+//! managers with paths the agent makes for them (`remote_files.rs`).
 //!
 //! The two signals are read straight off the bus rather than through
 //! ashpd: xdg-desktop-portal 1.20 sends `SelectionOwnerChanged`'s
@@ -122,6 +122,17 @@ pub async fn serve(
                             offered = Some(clipboard);
                         }
                         Err(error) => log::warn!("clipboard: SetSelection: {error}"),
+                    }
+                }
+                Some(ClipboardCommand::WithdrawFiles) => {
+                    if offered.as_ref().is_some_and(|clipboard| clipboard.formats.iter().any(|format| format.mime == URI_LIST)) {
+                        offered = None;
+                        // Without a list of types the selection is given
+                        // up (Mutter refuses an empty list).
+                        match portal.set_selection(&session, SetSelectionOptions::default()).await {
+                            Ok(()) => log::info!("clipboard: a peer's files are gone; emptied"),
+                            Err(error) => log::warn!("clipboard: SetSelection: {error}"),
+                        }
                     }
                 }
                 Some(ClipboardCommand::Enable(on)) => {

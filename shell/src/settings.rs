@@ -37,11 +37,10 @@ pub struct Settings {
     /// The window's language: `system`, `zh-CN`, `ja-JP` or `en-US`.
     pub language: String,
     /// Share the clipboard with peers as control changes hands (text, HTML,
-    /// images). Off by default, as on Windows.
+    /// images, copied files). One switch, as on Windows and macOS. On by
+    /// default: sharing a keyboard without it is half the job, and a device
+    /// has to be paired before it gets anything.
     pub clipboard: bool,
-    /// Share copied files as well: files copied on one device can be
-    /// pasted on the next. Needs `clipboard`; off by default.
-    pub files: bool,
     /// How long the pointer must keep pushing against an edge before it
     /// crosses, in milliseconds (0: at once). Against crossing by accident.
     pub switch_delay_ms: u32,
@@ -100,8 +99,7 @@ impl Default for Settings {
             manual_addresses: Vec::new(),
             peer_input: BTreeMap::new(),
             language: "system".to_owned(),
-            clipboard: false,
-            files: false,
+            clipboard: true,
             switch_delay_ms: 0,
             corner_guard: 0,
             scroll_lock_locks: true,
@@ -240,10 +238,10 @@ mod tests {
         let mut values = Map::new();
         values.insert("manual_addresses".into(), serde_json::json!(["192.168.1.20"]));
         assert_eq!(settings.merged(&values).unwrap().manual_addresses.len(), 1);
-        assert!(!settings.clipboard);
+        assert!(settings.clipboard);
         let mut values = Map::new();
-        values.insert("clipboard".into(), Value::Bool(true));
-        assert!(settings.merged(&values).unwrap().clipboard);
+        values.insert("clipboard".into(), Value::Bool(false));
+        assert!(!settings.merged(&values).unwrap().clipboard);
         values.insert("clipboard".into(), Value::from("yes"));
         assert!(settings.merged(&values).is_err());
     }

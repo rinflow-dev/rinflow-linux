@@ -57,8 +57,6 @@ mod imp {
         #[template_child]
         pub clipboard_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
-        pub files_row: TemplateChild<adw::SwitchRow>,
-        #[template_child]
         pub autostart_row: TemplateChild<adw::SwitchRow>,
         #[template_child]
         pub lock_row: TemplateChild<adw::SwitchRow>,
@@ -281,7 +279,6 @@ impl RinflowWindow {
         self.bind_switch(&imp.sharing_row, "sharing");
         self.bind_switch(&imp.paired_only_row, "paired_only");
         self.bind_switch(&imp.clipboard_row, "clipboard");
-        self.bind_switch(&imp.files_row, "files");
         self.bind_switch(&imp.autostart_row, "launch_at_login");
         self.bind_switch(&imp.scroll_lock_row, "scroll_lock_locks");
         self.bind_spin(&imp.delay_row, "switch_delay_ms");
@@ -506,9 +503,6 @@ impl RinflowWindow {
         imp.sharing_row.set_active(settings.sharing);
         imp.paired_only_row.set_active(settings.paired_only);
         imp.clipboard_row.set_active(settings.clipboard);
-        imp.files_row.set_active(settings.files);
-        // Files travel with the clipboard.
-        imp.files_row.set_sensitive(settings.clipboard);
         imp.autostart_row.set_active(snapshot.launch_at_login);
         imp.lock_row.set_active(snapshot.locked);
         imp.scroll_lock_row.set_active(settings.scroll_lock_locks);

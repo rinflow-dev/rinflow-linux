@@ -188,7 +188,7 @@ pub struct Snapshot {
     pub input: InputView,
 }
 
-/// Copied files on their way to this device.
+/// Files copied on another device being pasted here (read from it).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransferView {
     /// The core's number for it (`cancel_files`).
@@ -284,6 +284,16 @@ impl SharedState {
             replace(&mut snapshot.locked, now)
         });
         now
+    }
+
+    /// How much of the files being pasted from `peer_id` has been read, as
+    /// the agent counts it. The core counts only what arrived in order,
+    /// and a file manager reads ahead out of order.
+    pub fn set_files_read(&self, peer_id: &str, received: u64) {
+        self.0.send_if_modified(|snapshot| match &mut snapshot.transfer {
+            Some(view) if view.peer_id == peer_id => advance(view, received),
+            _ => false,
+        });
     }
 
     pub fn locked(&self) -> bool {
@@ -523,32 +533,25 @@ impl SharedState {
                     return false;
                 };
                 match &mut snapshot.transfer {
-                    // Told to the window a hundredth at a time, not chunk by chunk.
-                    Some(view) if u64::from(view.transfer) == transfer => {
-                        let step = (view.total / 100).max(1);
-                        if received / step != view.received / step || received >= view.total {
-                            replace(&mut view.received, received)
-                        } else {
-                            false
-                        }
-                    }
+                    Some(view) if u64::from(view.transfer) == transfer => advance(view, received),
                     _ => false,
                 }
             }
-            "files_received" | "files_failed" => {
+            // The paste is over: what was pasted is where the user put it.
+            "files_stream_ended" => {
                 let transfer = event["transfer"].as_u64();
                 let ours = snapshot.transfer.as_ref().is_some_and(|view| Some(u64::from(view.transfer)) == transfer);
                 if ours {
                     snapshot.transfer = None;
                 }
                 let reason = event["reason"].as_str().unwrap_or_default();
-                // Stopped by the user, or by a newer copy: not a failure.
-                let failed = kind == "files_failed" && !matches!(reason, "" | "cancelled" | "replaced by a newer copy");
+                // Finished, or stopped by the user: not a failure.
+                let failed = ours && !matches!(reason, "" | "delivered" | "released" | "cancelled");
                 if failed {
                     // Translators: {reason} is the cause, in English.
                     snapshot.last_error = Some(msg("The copied files couldn't be received: {reason}").arg("reason", reason));
                 }
-                ours || failed
+                ours
             }
             "manual_addresses" => {
                 let addresses = event["addresses"].as_array().cloned().unwrap_or_default();
@@ -583,6 +586,19 @@ impl Snapshot {
             }
         };
         &mut self.sessions[index]
+    }
+}
+
+/// Moves a transfer's progress forward (never back: it is counted in two
+/// places); told to the window a hundredth at a time, not chunk by chunk.
+fn advance(view: &mut TransferView, received: u64) -> bool {
+    let received = received.min(view.total);
+    let step = (view.total / 100).max(1);
+    if received > view.received && (received / step != view.received / step || received >= view.total) {
+        view.received = received;
+        true
+    } else {
+        false
     }
 }
 

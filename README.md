@@ -182,7 +182,7 @@ Logs: `journalctl --user -u rinflow-agent -f` under systemd, or `RUST_LOG=debug
 
 ## Clipboard
 
-**Share the clipboard** on the Settings page (off by default, as on Windows).
+**Share the clipboard** on the Settings page (on by default).
 The clipboard follows the pointer, as in Deskflow: when this device starts
 driving another, that device gets this one's clipboard, and when control
 comes back, its clipboard comes back. Text, HTML and PNG images, up to 8 MiB
@@ -211,15 +211,16 @@ The design is one systemd user service for the whole login, so that switching th
 
 ## Files
 
-**Share copied files** on the Settings page (off by default; needs **Share
-the clipboard**). Files and folders copied in a file manager on one device
+Copied files go with the clipboard (**Share the clipboard** on the Settings
+page; there is no separate switch). Files and folders copied in a file manager on one device
 can be pasted on the next once the pointer has moved there.
 
 | | How |
 | --- | --- |
 | Copied here | The file manager's `text/uri-list` (or `x-special/gnome-copied-files`) is read with the clipboard and handed to the core, which sends a manifest; the paths stay on this device and the contents go when the other device takes them. While the setting is off the list is not read. |
-| From a peer | Every transfer is offered to the agent first. With the setting on and up to 512 MiB it is received into `Rinflow` in the download folder (`XDG_DOWNLOAD_DIR`), with a progress banner in the window that can cancel it; then the files are on this desktop's clipboard as `text/uri-list` and `x-special/gnome-copied-files`, so Nautilus, Dolphin and the rest paste them. With the setting off it is declined and nothing is written. |
-| Flatpak | Receiving works as is. Sending reads the copied files where they are, which the sandbox allows only for what it can see: `flatpak override --user --filesystem=home com.rinflow.rinflow`. |
+| From a peer | The peer only describes its files (names and sizes). They appear, without contents, in a read-only FUSE file system at `$XDG_RUNTIME_DIR/rinflow/files`, and go on this desktop's clipboard as `text/uri-list` and `x-special/gnome-copied-files`, so Nautilus, Dolphin and the rest paste them. What the file manager reads when the user pastes is fetched from the peer then, a piece at a time, with a progress banner in the window that can cancel it. Nothing is transferred for a copy that is never pasted, and nothing is kept but what was pasted, where it was pasted. Needs `fusermount3` (the `fuse3` package). |
+| Older peers | A peer that cannot be read on demand would have its files downloaded at once: that is declined, and the window says to update Rinflow there. |
+| Flatpak | A sandbox cannot mount FUSE, so files copied on other devices cannot be pasted from the Flatpak. Sending reads the copied files where they are, which the sandbox allows only for what it can see: `flatpak override --user --filesystem=home com.rinflow.rinflow`. |
 
 ## Staying on one screen
 
@@ -265,7 +266,6 @@ entry, so the desktop's settings can silence it):
 | | |
 | --- | --- |
 | A device asks to pair | Click to open the window and compare the code, or **Reject**. It cannot be accepted from the notification, and the code is not shown there. Withdrawn when the pairing is over or a window opens; the same device asking again within 30 seconds is not announced twice. |
-| Files arrived | Where they are, and **Open Folder**. |
 
 A window that is open asks by itself (and comes forward), so nothing is
 announced twice.

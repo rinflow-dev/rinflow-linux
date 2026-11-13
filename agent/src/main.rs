@@ -12,6 +12,7 @@ mod ipc;
 mod notify;
 mod paths;
 mod power;
+mod remote_files;
 mod services;
 mod tray;
 
@@ -119,10 +120,13 @@ async fn run() -> i32 {
             // Always offered, so the setting can change at run time; while
             // it is off the agent reports an empty clipboard (see below).
             clipboard: true,
-            // Likewise files: every transfer is offered first (the limit
-            // is zero), and `files_offered` below decides by the setting.
+            // Files a peer copied are only described to this device
+            // (`files_available`), and read when the user pastes them: see
+            // `remote_files.rs`. Nothing is ever downloaded by itself; the
+            // directory is one the core asks for and never gets to use.
             files: true,
-            download_directory: Some(paths::download_directory().to_string_lossy().into_owned()),
+            on_demand_files: true,
+            download_directory: Some(paths::runtime_directory().join("declined").to_string_lossy().into_owned()),
             max_auto_receive_bytes: 0,
             identity_path: Some(identity::identity_path(&data).to_string_lossy().into_owned()),
             trusted_peers: trust.peers(),
@@ -162,7 +166,6 @@ async fn run() -> i32 {
         commands: commands_tx,
         windows: tokio::sync::watch::Sender::new(0),
     });
-    let (notices_tx, notices) = mpsc::unbounded_channel::<notify::Notice>();
     tokio::task::spawn_local(ipc::serve(listener, services.clone()));
     // The tray's labels are the only text the agent shows by itself.
     let environment = |name: &str| std::env::var(name).ok().filter(|value| !value.is_empty());
@@ -172,7 +175,7 @@ async fn run() -> i32 {
         rinflow_shell::i18n::system_languages(messages_locale.as_deref(), environment("LANGUAGE").as_deref()),
     );
     tray::spawn(services.clone());
-    notify::spawn(services, notices);
+    notify::spawn(services);
     power::spawn(Arc::downgrade(&core));
 
     let (capture_events_tx, mut capture_events) = mpsc::unbounded_channel::<CaptureEvent>();
@@ -186,7 +189,7 @@ async fn run() -> i32 {
         clipboard_events_tx,
     );
     backends.set_clipboard_enabled(preferences.clipboard);
-    backends.set_files_enabled(preferences.clipboard && preferences.files);
+    backends.set_files_enabled(preferences.clipboard);
     let mut driver = Driver::new(Arc::downgrade(&core), state.clone(), arrangement.clone(), settings.clone(), backends.last_played.clone());
 
     let mut poll = tokio::time::interval(Duration::from_secs(1));
@@ -196,6 +199,13 @@ async fn run() -> i32 {
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
     log::info!("rinflow-agent {} as {} ({})", env!("CARGO_PKG_VERSION"), identity.device_name, identity.device_id);
+
+    let mut remote_files = remote_files::RemoteFiles::new(paths::runtime_directory().join("files"), Arc::downgrade(&core), {
+        let state = state.clone();
+        Box::new(move |peer, received| state.set_files_read(peer, received))
+    });
+    // A peer too old to offer files on demand is told about once.
+    let mut told_outdated = false;
 
     // A core that could not start (its port is taken, say) leaves the agent
     // up: the window shows why, and the port can be changed from there.
@@ -222,15 +232,17 @@ async fn run() -> i32 {
                 if event["event"] == "clipboard" {
                     received_clipboard(&event, &settings, &core, &backends);
                 }
-                if event["event"] == "files_received" {
-                    let paths = event["paths"]
-                        .as_array()
-                        .map(|paths| paths.iter().filter_map(|path| path.as_str()).map(std::path::PathBuf::from).collect())
-                        .unwrap_or_default();
-                    let _ = notices_tx.send(notify::Notice::FilesReceived { paths });
-                }
-                if event["event"] == "files_offered" {
-                    files_offered(&event, &settings, &core, &state);
+                match event["event"].as_str() {
+                    Some("files_available") => files_available(&event, &settings, &core, &backends, &mut remote_files),
+                    Some("files_unavailable") => {
+                        if let Some(peer) = event["peer_id"].as_str()
+                            && remote_files.withdraw(peer)
+                        {
+                            backends.withdraw_files();
+                        }
+                    }
+                    Some("files_offered") => files_offered(&event, &core, &state, &mut told_outdated),
+                    _ => {}
                 }
                 if matches!(
                     event["event"].as_str(),
@@ -287,14 +299,16 @@ async fn run() -> i32 {
                     if keys.iter().any(|key| key == "sharing") {
                         driver.refresh_barriers();
                     }
-                    if keys.iter().any(|key| key == "clipboard" || key == "files") {
-                        let now = settings.get();
-                        backends.set_files_enabled(now.clipboard && now.files);
-                    }
                     if keys.iter().any(|key| key == "clipboard") {
                         let enabled = settings.get().clipboard;
+                        // Copied files travel with the clipboard.
+                        backends.set_files_enabled(enabled);
                         backends.set_clipboard_enabled(enabled);
                         if !enabled {
+                            // Files being read from a peer stop as well.
+                            let _ = core.revoke_file_streams();
+                            remote_files.withdraw_all();
+                            backends.withdraw_files();
                             let _ = core.set_clipboard(Default::default());
                         }
                     }
@@ -361,35 +375,50 @@ fn core_stopped_message(port: u16, detail: &str) -> Text {
     }
 }
 
-/// Files larger than this in all are not taken without asking, and there
-/// is nothing to ask with yet: they are declined, and the window says so.
-const MAX_RECEIVED_FILES: u64 = 512 * 1024 * 1024;
+/// A peer describes the files copied there. They appear in this device's
+/// file system without their contents (`remote_files.rs`) and go on the
+/// clipboard as files; what is pasted is read from the peer then.
+fn files_available(
+    event: &serde_json::Value,
+    settings: &SettingsStore,
+    core: &Core,
+    backends: &Backends,
+    remote_files: &mut remote_files::RemoteFiles,
+) {
+    let Some(peer) = event["peer_id"].as_str() else { return };
+    if !settings.get().clipboard {
+        let _ = core.set_clipboard(Default::default());
+        return;
+    }
+    let manifest = match serde_json::from_value::<rinflow_core::FileManifest>(event["manifest"].clone()) {
+        Ok(manifest) => manifest,
+        Err(error) => return log::warn!("unreadable files from a peer: {error}"),
+    };
+    let Some(paths) = remote_files.publish(peer, &manifest) else { return };
+    log::info!("files from {peer}: {} offered, {} bytes, read when pasted", manifest.entries.len(), manifest.total_size);
+    backends.offer_clipboard(rinflow_core::Clipboard {
+        formats: vec![rinflow_core::ClipboardFormat {
+            mime: rinflow_core::MIME_URI_LIST.to_owned(),
+            data: remote_files::uri_list(&paths).into_bytes(),
+        }],
+    });
+}
 
-/// A peer offers the files copied there (every transfer is offered: see
-/// `max_auto_receive_bytes` above). Taken while the user shares files and
-/// they are not too large; declined otherwise, so the setting holds at
-/// once and nothing lands on this device with it off.
-fn files_offered(event: &serde_json::Value, settings: &SettingsStore, core: &Core, state: &SharedState) {
+/// A peer without file streams offers files the old way, which would
+/// download them here at once: declined, and the window says why once.
+fn files_offered(event: &serde_json::Value, core: &Core, state: &SharedState, told: &mut bool) {
     let Some(transfer) = event["transfer"].as_u64().and_then(|transfer| u32::try_from(transfer).ok()) else {
         return;
     };
-    let size = event["total_size"].as_u64().unwrap_or(0);
-    let now = settings.get();
-    if !(now.clipboard && now.files) {
-        log::info!("files offered by a peer: declined (sharing files is off)");
-        let _ = core.cancel_files(transfer);
-    } else if size > MAX_RECEIVED_FILES {
-        log::info!("files offered by a peer: declined ({size} bytes is over the limit)");
-        let _ = core.cancel_files(transfer);
-        // Translators: {size} is a size in megabytes, {limit} the largest allowed.
+    let _ = core.cancel_files(transfer);
+    let peer = event["peer_id"].as_str().unwrap_or_default();
+    log::info!("files from {peer}: declined (it has no file streams)");
+    if !std::mem::replace(told, true) {
+        let name = state.snapshot().sessions.iter().find(|session| session.peer_id == peer).map(|session| session.name.clone());
+        // Translators: {name} is another device's name.
         state.set_error(
-            msg("The copied files ({size} MB) are larger than Rinflow receives ({limit} MB).")
-                .arg("size", (size / (1024 * 1024)).to_string())
-                .arg("limit", (MAX_RECEIVED_FILES / (1024 * 1024)).to_string()),
+            msg("Files copied on {name} can't be pasted here: update Rinflow on that device.").arg("name", name.unwrap_or_else(|| peer.to_owned())),
         );
-    } else {
-        log::info!("files offered by a peer: receiving {} files, {size} bytes", event["count"].as_u64().unwrap_or(0));
-        let _ = core.accept_files(transfer);
     }
 }
 

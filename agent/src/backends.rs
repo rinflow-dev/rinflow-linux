@@ -174,6 +174,14 @@ impl Backends {
         }
     }
 
+    /// A peer's files are no longer offered: off this desktop's clipboard,
+    /// if they are still on it.
+    pub fn withdraw_files(&self) {
+        if let Some(commands) = self.emulation.as_ref().and_then(|e| e.clipboard.as_ref()) {
+            let _ = commands.send(ClipboardCommand::WithdrawFiles);
+        }
+    }
+
     /// Shares this desktop's clipboard, or stops reading it at all.
     pub fn set_clipboard_enabled(&mut self, enabled: bool) {
         self.clipboard_enabled = enabled;

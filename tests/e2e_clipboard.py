@@ -5,7 +5,7 @@ agents' RemoteDesktop sessions:
   app on A copies ──▶ agent A ── A drives B ──▶ agent B ──▶ app on B pastes
   app on B copies ──▶ agent B ── A comes back ─▶ agent A ──▶ app on A pastes
 
-Also: the setting is off by default and holds on either side, a password
+Also: the setting is on by default and holds on either side, a password
 manager's secret stays home, and a peer's clipboard does not echo back.
 
 Run: e2e_clipboard.py <agent binary> <fakedesk binary>. Needs dbus-daemon."""
@@ -56,7 +56,10 @@ if __name__ == "__main__":
     step("both agents ready", a.wait(ready, 20) and b.wait(ready, 20))
     step("the clipboard was asked for with the RemoteDesktop session", fake_a.state()["clipboard_requested"] and fake_b.state()["clipboard_requested"])
     step("the snapshot says the clipboard is available", a.wait(lambda s: s["input"]["clipboard"], 10) and b.wait(lambda s: s["input"]["clipboard"], 10))
-    step("sharing the clipboard is off by default", a.state["settings"]["clipboard"] is False and b.state["settings"]["clipboard"] is False)
+    step("sharing the clipboard is on by default", a.state["settings"]["clipboard"] is True and b.state["settings"]["clipboard"] is True)
+    for agent in (a, b):
+        agent.send({"type": "update_settings", "values": {"clipboard": False}})
+    step("turned off, saved", a.wait(lambda s: not s["settings"]["clipboard"]) and b.wait(lambda s: not s["settings"]["clipboard"]))
 
     # Pair, connect, place B to the right of A.
     step("discovery", a.wait(lambda s: any(p["id"] == idb for p in s["peers"])) and b.wait(lambda s: any(p["id"] == ida for p in s["peers"])))
@@ -153,29 +156,27 @@ if __name__ == "__main__":
         f.write("a single file")
     uri = lambda path: "file://" + urllib.parse.quote(path)
     uri_list = (uri(f"{source}/报告") + "\r\n" + uri(f"{source}/note.txt") + "\r\n").encode()
+    mount = "/tmp/run-cb/rinflow/files"
     downloads = "/tmp/home-cb/Downloads/Rinflow"
+
+    step("there is no separate setting for files", "files" not in a.state["settings"])
+    # Files travel with the clipboard: copied on A, the list is read at once.
+    reads = len(fake_a.state()["reads"])
+    copy(fake_a, ("text/uri-list", uri_list), ("text/plain;charset=utf-8", "报告\nnote.txt".encode()))
+    step("the copied file list is read at once", fake_a.wait(lambda s: "text/uri-list" in s["reads"][reads:], 5))
+
+    # The clipboard off on the receiver: nothing is offered there.
+    b.send({"type": "update_settings", "values": {"clipboard": False}})
+    b.wait(lambda s: not s["settings"]["clipboard"])
+    sets_b = fake_b.state()["selection_sets"]
+    step("A crosses with files, B not sharing", cross())
+    a.pump(1.5); b.pump(1.0)
+    step("B's desktop is offered nothing, and nothing is mounted", fake_b.state()["selection_sets"] == sets_b and not os.path.ismount(mount))
+    step("back home", back())
 
     b.send({"type": "update_settings", "values": {"clipboard": True}})
     b.wait(lambda s: s["settings"]["clipboard"])
-    step("sharing files is off by default", a.state["settings"]["files"] is False and b.state["settings"]["files"] is False)
-
-    # Off on the sender: the file list is not even read.
-    reads = len(fake_a.state()["reads"])
-    copy(fake_a, ("text/uri-list", uri_list), ("text/plain;charset=utf-8", "报告\nnote.txt".encode()))
-    fake_a.wait(lambda s: len(s["reads"]) > reads, 5)
-    step("files off: the copied file list is not read", "text/uri-list" not in fake_a.state()["reads"][reads:], json.dumps(fake_a.state()["reads"][reads:]))
-    a.send({"type": "update_settings", "values": {"files": True}})
-    step("files on at A: the list already copied is read at once", fake_a.wait(lambda s: "text/uri-list" in s["reads"][reads:], 5))
-
-    # Off on the receiver: nothing lands.
-    step("A crosses with files, B not taking any", cross())
-    a.pump(1.5); b.pump(1.0)
-    step("nothing arrived on B", not os.path.exists(downloads) or not os.listdir(downloads))
-    step("back home", back())
-
-    b.send({"type": "update_settings", "values": {"files": True}})
-    b.wait(lambda s: s["settings"]["files"])
-    # Copied again (a new copy is a new transfer), then across.
+    # Copied again (a new copy is a new offer), then across.
     copy(fake_a, ("text/uri-list", uri_list), ("text/plain;charset=utf-8", "报告\nnote.txt".encode()))
     fake_a.wait(lambda s: s["reads"][-2:].count("text/uri-list") >= 1, 5)
     sets_b = fake_b.state()["selection_sets"]
@@ -185,19 +186,63 @@ if __name__ == "__main__":
          json.dumps(fake_b.state()["offered_types"]))
     pasted = paste(fake_b, "text/uri-list")
     paths = [urllib.parse.unquote(line[len("file://"):]) for line in (pasted or b"").decode().split() if line.startswith("file://")]
-    step("pasting gives paths in B's download folder", len(paths) == 2 and all(p.startswith(downloads + "/") for p in paths), repr(pasted))
+    step("pasting gives paths in the agent's own file system", len(paths) == 2 and all(p.startswith(mount + "/") for p in paths) and os.path.ismount(mount), repr(pasted))
     folder = next((p for p in paths if p.endswith("报告")), "")
+    note = next((p for p in paths if p.endswith("note.txt")), "")
     received = f"{folder}/第一章.bin"
-    step("the folder came whole, the large file identical",
-         os.path.isfile(received) and hashlib.sha256(open(received, "rb").read()).digest() == hashlib.sha256(payload).digest()
-         and open(f"{folder}/图/a b.txt").read() == "inside a folder")
-    step("... and the single file", any(os.path.isfile(p) and open(p).read() == "a single file" for p in paths if p.endswith("note.txt")))
+    step("the files are there by name and size", os.path.isdir(folder) and os.path.getsize(received) == len(payload)
+         and sorted(os.listdir(folder)) == sorted(["第一章.bin", "图"]) and os.path.getsize(note) == len("a single file"))
     nautilus = paste(fake_b, "x-special/gnome-copied-files")
     step("GTK file managers get their own form: copy, then the URLs", (nautilus or b"").startswith(b"copy\nfile://") and b"\r" not in (nautilus or b""), repr(nautilus))
-    step("the transfer is over in the snapshot", b.wait(lambda s: s.get("transfer") is None, 10))
+    a.pump(1.5); b.pump(1.0)
+    step("nothing was transferred for looking: no transfer, nothing in Downloads",
+         b.state.get("transfer") is None and not os.path.exists(downloads))
+
+    # What a file manager does on paste: reads the files. A thread reads, so
+    # the agents' snapshots can be followed meanwhile.
+    import threading
+    got = {}
+    def read_all():
+        try:
+            got["large"] = open(received, "rb").read()
+            got["inner"] = open(f"{folder}/图/a b.txt").read()
+            got["note"] = open(note).read()
+        except OSError as error:
+            got["error"] = str(error)
+    reader = threading.Thread(target=read_all); reader.start()
+    step("reading starts a transfer in the snapshot", b.wait(lambda s: s.get("transfer") is not None, 10))
+    seen = set()
+    while reader.is_alive():
+        a.pump(0.05); b.pump(0.05)
+        if b.state.get("transfer"):
+            seen.add(b.state["transfer"]["received"])
+    b.pump(0.5)
+    if b.state.get("transfer"):
+        seen.add(b.state["transfer"]["received"])
+    total = len(payload) + len("inside a folder") + len("a single file")
+    # Read on one host it is over too fast to see steps in between; the
+    # core's own count, which a file manager's read-ahead stalls, stayed at 0.
+    step("the progress reaches everything that was read", seen and max(seen) == total, f"{sorted(seen)[-3:]} of {total}")
+    step("the folder reads whole, the large file identical",
+         hashlib.sha256(got.get("large", b"")).digest() == hashlib.sha256(payload).digest() and got.get("inner") == "inside a folder", got.get("error", ""))
+    step("... and the single file", got.get("note") == "a single file")
+    with open(received, "rb") as f:
+        f.seek(2 * 1024 * 1024 + 7)
+        step("a file can be read from the middle", f.read(1000) == payload[2 * 1024 * 1024 + 7:][:1000])
+    step("the transfer is over in the snapshot a few seconds after the last file is closed", b.wait(lambda s: s.get("transfer") is None, 15))
+    step("nothing was written on B but what was read", not os.path.exists(downloads))
+    step("back home", back())
+
+    # A copies something else: the files are gone from B.
+    copy(fake_a, ("text/plain;charset=utf-8", b"something else"))
+    step("A crosses with text", cross())
+    step("B is offered the text", fake_b.wait(lambda s: s["offered_types"][:1] == ["text/plain;charset=utf-8"], 10), json.dumps(fake_b.state()["offered_types"]))
+    b.pump(2.5)
+    step("the files A offered before are no longer found", not os.path.exists(folder) and os.listdir(mount) == [], repr(os.listdir(mount)))
     step("back home", back())
 
     a.quit(); b.quit()
     step("agents exit cleanly", a.proc.returncode == 0 and b.proc.returncode == 0)
+    step("the file system is unmounted with the agent", not os.path.ismount(mount))
     fake_a.stop(); fake_b.stop()
     sys.exit(step.finish())
