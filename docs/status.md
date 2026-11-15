@@ -104,6 +104,7 @@ or found broken.
 | The window on a real GNOME 48 session | same | by hand, read through AT-SPI | opens, shows both permission states and the nearby devices |
 | Permissions on a real GNOME 48 session | same | by hand | both dialogs allowed; on the next start RemoteDesktop (and its clipboard) came back silently from the restore token, InputCapture asked again (as expected before GNOME 51) |
 | The crossing on a real GNOME 48 session (used over VNC) | same, against a stand-in peer on the same host | relative motion injected through Mutter's RemoteDesktop/EIS (tests/fakedesk `injector`), the path a local mouse takes; VNC sends absolute motion, which barriers ignore | crossing at the right edge, entry point exact, motion and keys arrive, back across the edge, a second crossing and Ctrl+Alt+Esc all pass; the clipboard went both ways (text copied on the real desktop pasted on the peer; the peer's text taken by an application on the real desktop). The first attempt, on an agent that had waited 38 minutes for the dialog, crossed but no captured input reached the agent; not seen again and not explained. Captured EIS events are now logged (`RUST_LOG=rinflow_input=debug`, motion at `trace`) to tell if it comes back |
+| A Mac controlling a real GNOME 48 session | Debian 13 desktop, the macOS client on the LAN | by hand | pairing, the Mac's pointer and keyboard here; files copied on the Mac pasted in the file manager here (read on demand through the mount), files copied here pasted on the Mac |
 | Re-setting barriers on a real GNOME 48 session | same | by hand, watching the portal on the bus | refused while enabled before the fix; Disable → set → Enable accepted |
 
 Earlier, in aarch64 containers: Mutter 46 (Ubuntu 24.04) for the crossing,
@@ -115,16 +116,18 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
 
 - **A physical mouse** on a real session (the session was used over VNC; the
   crossing was driven by relative motion injected through Mutter instead).
-- **Interoperation with the Windows and macOS clients**: pairing, crossing
-  and the clipboard with a real PC and Mac.
+- **Interoperation with the Windows client**: pairing, crossing and the
+  clipboard with a real PC. (A Mac controlling this device is in the table
+  above; this device controlling a Mac is not.)
 - **Plasma as the controlling side**: it failed in the earlier container
   runs and has not been looked at since. Plasma as the controlled side
   passed there.
 - **Steam Deck hardware**, both modes, and switching between them on the
   device (the logic is covered by `make e2e-systemd` and unit tests).
 - **Several monitors and fractional scaling** on real hardware.
-- **The Flatpak** build (`Cargo.lock` gained no new crates, so
-  `build-aux/cargo-sources.json` still matches).
+- **The Flatpak** build. `build-aux/cargo-sources.json` is behind
+  `Cargo.lock` (15 crates, `fuser` among them) and must be regenerated
+  before it builds.
 
 ## Known limits
 
@@ -134,8 +137,8 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
   (an older Rinflow) has its files declined. Dragging files across the edge
   is not done.
 - Pasting a peer's files has been run between two Linux agents
-  (`make e2e-clipboard`, files read through the mount), not yet with a real
-  file manager, nor with a Mac or a Windows PC.
+  (`make e2e-clipboard`, files read through the mount) and from a Mac into
+  a real file manager, not yet with a Windows PC.
 - A shortcut cannot send the pointer to another device: the InputCapture
   portal starts a capture only at an edge. It can bring it home.
 - The tray icon, notifications, the lock, the crossing delay and copied files have only

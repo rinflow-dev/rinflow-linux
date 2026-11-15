@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>com.rinflow.rinflow</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0-or-later</project_license>
+  <project_license>MPL-2.0</project_license>
   <name translate="no">Rinflow</name>
   <summary>Use one mouse and keyboard across your computers</summary>
   <developer id="com.rinflow">
@@ -11,7 +11,7 @@
   <description>
     <p>Move the pointer off the edge of this screen and it appears on the computer next to it: a Mac, a Windows PC, another Linux machine or a Steam Deck. The keyboard follows. Every connection is encrypted and new devices pair with a six-digit code.</p>
     <p>On GNOME and KDE the desktop asks once whether Rinflow may capture and play input. In Steam Deck's Gaming Mode this device can be controlled by others.</p>
-    <p>Optionally the clipboard goes along: text and images copied on one computer can be pasted on the next.</p>
+    <p>The clipboard goes along: text, images and files copied on one computer can be pasted on the next.</p>
   </description>
   <launchable type="desktop-id">com.rinflow.rinflow.desktop</launchable>
   <provides>
@@ -37,9 +37,9 @@
   </branding>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.0.1" date="2026-11-02">
+    <release version="0.0.1" date="2026-11-15">
       <description>
-        <p>First Linux release: GNOME and KDE on Wayland through the input portals, Steam Deck Gaming Mode as a controlled device, and clipboard sharing (text, HTML and images) through the clipboard portal.</p>
+        <p>First Linux release: GNOME and KDE on Wayland, Steam Deck Gaming Mode as a controlled device, and a shared clipboard for text, images and files.</p>
       </description>
     </release>
   </releases>

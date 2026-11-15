@@ -1,6 +1,6 @@
 [package]
 name = "rinflow"
-description = "Rinflow's Linux window: devices, arrangement, pairing and settings"
+description = "Use one mouse and keyboard across your computers"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -30,7 +30,7 @@ glib-build-tools = "0.22"
 # one package with both binaries, the desktop files and the user service.
 [package.metadata.deb]
 name = "rinflow"
-maintainer = "Rinflow <mmsann55@gmail.com>"
+maintainer = "Rinflow <support@rinflow.com>"
 copyright = "2026 Rinflow"
 license-file = ["../LICENSE", "0"]
 extended-description = """Rinflow shares one mouse and keyboard between the computers on a desk: \
@@ -40,7 +40,8 @@ background agent and the settings window for Linux desktops (GNOME and KDE \
 on Wayland, through the input portals)."""
 section = "utils"
 priority = "optional"
-depends = "$auto, libadwaita-1-0 (>= 1.5)"
+# fuse3: pasting files copied on another device (fusermount3).
+depends = "$auto, libadwaita-1-0 (>= 1.5), fuse3"
 assets = [
     ["target/release/rinflow", "usr/bin/", "755"],
     ["target/release/rinflow-agent", "usr/bin/", "755"],

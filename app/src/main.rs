@@ -108,7 +108,7 @@ fn setup_actions(app: &adw::Application) {
                 .application_icon(APP_ID)
                 .developer_name("Rinflow")
                 .version(env!("CARGO_PKG_VERSION"))
-                .license_type(gtk::License::Gpl30)
+                .license_type(gtk::License::Mpl20)
                 .website("https://github.com/rinflow-dev")
                 .comments(tr("Use one mouse and keyboard across your computers."))
                 .build();

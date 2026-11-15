@@ -131,8 +131,8 @@ flatpak run com.rinflow.rinflow
 
 `build-aux/cargo-sources.json` pins every crate; regenerate it after
 `Cargo.lock` changes with `flatpak-cargo-generator.py Cargo.lock -o build-aux/cargo-sources.json`
-(from flatpak-builder-tools). A `.deb` comes from `cargo install cargo-deb &&
-make locale && cargo build --release && cargo deb -p rinflow --no-build`.
+(from flatpak-builder-tools). A `.deb` comes from `make deb`
+(needs `cargo install cargo-deb`) and lands in `target/debian/`.
 
 ## Translations
 
@@ -196,11 +196,11 @@ in all; files are not shared yet.
 | Privacy | What a password manager marks with `x-kde-passwordManagerHint: secret` (KeePassXC, KWallet) never leaves this device. |
 | Quirk handled | xdg-desktop-portal 1.20 sends `SelectionOwnerChanged`'s `mime_types` wrapped in a struct, `(as)`, where the specification has `as`; ashpd drops such signals silently, so the agent reads them off the bus itself and accepts both. |
 
-**Status: first MVP.** On GNOME 48 (Debian 13, x86_64) the crossing, being controlled and the clipboard pass end to end between real Mutter desktops (headless), and the agent and window run on a real GNOME session. Plasma as the controlling side is not verified (it failed in earlier container runs), and interoperation with the Windows and macOS clients has not been run yet. See [docs/status.md](docs/status.md).
+**Status: first release, 0.0.1.** On GNOME 48 (Debian 13, x86_64) the crossing, being controlled and the clipboard pass end to end between real Mutter desktops (headless), and a Mac has controlled a real GNOME session, clipboard and copied files included. Plasma as the controlling side is not verified (it failed in earlier container runs), and nothing has been run against the Windows client yet. See [docs/status.md](docs/status.md).
 
 The design is one systemd user service for the whole login, so that switching the Deck between modes does not restart it. A service starts before any desktop, so the agent reads the desktop's variables from the systemd user manager as well as from its own environment (desktops push them there with `import-environment`), and follows the desktop as it comes and goes: a Wayland display counts only while its socket is there.
 
-## Files
+## Where things are kept
 
 | What | Where |
 | --- | --- |
@@ -209,7 +209,7 @@ The design is one systemd user service for the whole login, so that switching th
 | The window's socket | `$XDG_RUNTIME_DIR/rinflow/agent.sock` |
 | Start at login | `~/.config/autostart/com.rinflow.rinflow.agent.desktop` (outside Flatpak) |
 
-## Files
+## Copied files
 
 Copied files go with the clipboard (**Share the clipboard** on the Settings
 page; there is no separate switch). Files and folders copied in a file manager on one device
@@ -278,7 +278,7 @@ descriptors per session in released versions).
 
 ## License
 
-GPL-3.0-or-later; the full text is in [LICENSE](LICENSE). The symbolic
+MPL-2.0; the full text is in [LICENSE](LICENSE). The symbolic
 icons under `data/icons/scalable/` come from the GNOME Adwaita icon theme
 (CC BY-SA 3.0 / LGPL 3), see [data/icons/README.md](data/icons/README.md).
-`rinflow-core` is under its own license (MPL-2.0).
+`rinflow-core` is under the same license.
