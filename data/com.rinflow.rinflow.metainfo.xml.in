@@ -37,7 +37,7 @@
   </branding>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.1.0" date="2026-11-02">
+    <release version="0.0.1" date="2026-11-02">
       <description>
         <p>First Linux release: GNOME and KDE on Wayland through the input portals, Steam Deck Gaming Mode as a controlled device, and clipboard sharing (text, HTML and images) through the clipboard portal.</p>
       </description>

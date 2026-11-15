@@ -277,7 +277,7 @@ impl Backends {
                 log::warn!("capture denied: {detail}");
                 self.stop_capture();
                 self.capture_retry.due = None;
-                self.state.set_capture(BackendView::new(BackendState::Denied, "portal", msg("Permission to capture input was not given. This device can't control others until it is requested again and allowed.")));
+                self.state.set_capture(BackendView::new(BackendState::Denied, "portal", msg("This device can't control others: the permission was not given.")));
             }
             CaptureEvent::Lost(detail) => {
                 log::warn!("capture lost: {detail}");
@@ -308,7 +308,7 @@ impl Backends {
                 self.state.set_emulation(BackendView::new(
                     BackendState::Denied,
                     &backend,
-                    msg("Permission to control this device was not given. Other devices can't control it until it is requested again and allowed."),
+                    msg("Other devices can't control this one: the permission was not given."),
                 ));
             }
             EmulationEvent::Lost(detail) => {

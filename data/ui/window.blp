@@ -36,6 +36,13 @@ template $RinflowWindow : Adw.ApplicationWindow {
           button-label: _("Dismiss");
         }
 
+        // A permission the desktop hasn't given, or can't: nothing is shown
+        // while both directions work.
+        Adw.Banner input_banner {
+          use-markup: false;
+          button-label: _("Ask Again");
+        }
+
         // A pairing accepted here, waiting for the other device: shown
         // here rather than in a dialog that would block the window.
         Adw.Banner pairing_banner {
@@ -58,49 +65,9 @@ template $RinflowWindow : Adw.ApplicationWindow {
             icon-name: "computer-symbolic";
 
             child: Adw.PreferencesPage devices_page {
-              Adw.PreferencesGroup status_group {
-                title: _("This Device");
-
-                Adw.ActionRow capture_row {
-                  title: _("Controlling other devices");
-
-                  [prefix]
-                  Image capture_icon {
-                    icon-name: "input-mouse-symbolic";
-                  }
-
-                  [suffix]
-                  Button capture_retry {
-                    label: _("Ask Again");
-                    valign: center;
-                    visible: false;
-
-                    styles ["flat"]
-                  }
-                }
-
-                Adw.ActionRow emulation_row {
-                  title: _("Being controlled by other devices");
-
-                  [prefix]
-                  Image emulation_icon {
-                    icon-name: "input-keyboard-symbolic";
-                  }
-
-                  [suffix]
-                  Button emulation_retry {
-                    label: _("Ask Again");
-                    valign: center;
-                    visible: false;
-
-                    styles ["flat"]
-                  }
-                }
-              }
-
               Adw.PreferencesGroup layout_group {
                 title: _("Arrangement");
-                description: _("Drag a device to the side of this screen it sits on. The pointer crosses where they touch.");
+                description: _("Drag a device to where it sits beside this screen.");
               }
 
               Adw.PreferencesGroup my_devices_group {
@@ -122,7 +89,6 @@ template $RinflowWindow : Adw.ApplicationWindow {
 
               Adw.PreferencesGroup nearby_group {
                 title: _("Nearby Devices");
-                description: _("Devices found on this network that haven't connected yet.");
               }
             };
           }
@@ -138,67 +104,18 @@ template $RinflowWindow : Adw.ApplicationWindow {
 
                 Adw.SwitchRow sharing_row {
                   title: _("Share mouse and keyboard");
-                  subtitle: _("Off pauses crossing in both directions; devices stay connected.");
                 }
 
                 Adw.SwitchRow paired_only_row {
                   title: _("Only paired devices");
-                  subtitle: _("New devices must pair with a six-digit code first.");
                 }
 
                 Adw.SwitchRow clipboard_row {
                   title: _("Share the clipboard");
-                  subtitle: _("Text, images and files copied here go along when the pointer moves to another device, and come back with it. Files are transferred when they are pasted.");
                 }
 
                 Adw.SwitchRow autostart_row {
                   title: _("Start when I sign in");
-                }
-              }
-
-              Adw.PreferencesGroup {
-                title: _("Crossing");
-                description: _("When the pointer may leave this screen for another device.");
-
-                Adw.SwitchRow lock_row {
-                  title: _("Keep the pointer on this screen");
-                  subtitle: _("No edge leads to another device until this is turned off.");
-                }
-
-                Adw.SwitchRow scroll_lock_row {
-                  title: _("Scroll Lock keeps the pointer");
-                  subtitle: _("While you control another device, Scroll Lock keeps the pointer there until it is pressed again.");
-                }
-
-                Adw.SpinRow delay_row {
-                  title: _("Delay before crossing");
-                  subtitle: _("How long the pointer must push against an edge, in milliseconds. 0 crosses at once.");
-                  adjustment: Adjustment {
-                    lower: 0;
-                    upper: 2000;
-                    step-increment: 50;
-                    page-increment: 250;
-                  };
-                }
-
-                Adw.SpinRow corner_row {
-                  title: _("Corner margin");
-                  subtitle: _("Edges this close to a corner of the screen don't cross, in points. 0 turns it off.");
-                  adjustment: Adjustment {
-                    lower: 0;
-                    upper: 400;
-                    step-increment: 10;
-                    page-increment: 50;
-                  };
-                }
-              }
-
-              Adw.PreferencesGroup {
-                title: _("Keyboard");
-
-                Adw.ComboRow modifier_row {
-                  title: _("Modifier keys from a Mac");
-                  subtitle: _("What ⌘ and Control play as when a Mac controls this device.");
                 }
               }
 
@@ -213,25 +130,55 @@ template $RinflowWindow : Adw.ApplicationWindow {
                   title: _("Language");
                 }
               }
+            };
+          }
+
+          Adw.ViewStackPage {
+            name: "advanced";
+            title: _("Advanced");
+            icon-name: "preferences-other-symbolic";
+
+            child: Adw.PreferencesPage advanced_page {
+              Adw.PreferencesGroup {
+                title: _("Crossing");
+
+                Adw.SwitchRow lock_row {
+                  title: _("Keep the pointer on this screen");
+                }
+
+                Adw.SwitchRow scroll_lock_row {
+                  title: _("Scroll Lock keeps the pointer");
+                  subtitle: _("While controlling another device");
+                }
+
+                Adw.SpinRow delay_row {
+                  title: _("Delay before crossing");
+                  subtitle: _("Milliseconds");
+                  adjustment: Adjustment {
+                    lower: 0;
+                    upper: 2000;
+                    step-increment: 50;
+                    page-increment: 250;
+                  };
+                }
+
+                Adw.SpinRow corner_row {
+                  title: _("Corner margin");
+                  subtitle: _("Points near a screen corner where the pointer doesn't cross");
+                  adjustment: Adjustment {
+                    lower: 0;
+                    upper: 400;
+                    step-increment: 10;
+                    page-increment: 50;
+                  };
+                }
+              }
 
               Adw.PreferencesGroup {
-                title: _("Network");
+                title: _("Keyboard");
 
-                Adw.ActionRow port_row {
-                  title: _("Control port (UDP)");
-                  subtitle: _("Applies after the agent restarts.");
-
-                  [suffix]
-                  SpinButton port_spin {
-                    valign: center;
-                    numeric: true;
-                    adjustment: Adjustment {
-                      lower: 1024;
-                      upper: 65535;
-                      step-increment: 1;
-                      page-increment: 100;
-                    };
-                  }
+                Adw.ComboRow modifier_row {
+                  title: _("Modifier keys from a Mac");
                 }
               }
 

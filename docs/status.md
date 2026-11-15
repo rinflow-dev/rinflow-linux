@@ -1,6 +1,6 @@
 # Status of the Linux client
 
-First MVP, 0.1.0. What works, how that was checked, and what has not been
+First MVP, 0.0.1. What works, how that was checked, and what has not been
 checked yet. Update this file when something is verified on a new desktop,
 or found broken.
 
@@ -70,7 +70,7 @@ or found broken.
   device they are only described; what is pasted there is read from this
   one then (a FUSE file system on Linux, `agent/src/remote_files.rs`),
   with progress and Cancel in the window. Nothing is downloaded by itself.
-- **Staying on one screen** (new): a lock (Settings, tray, `rinflowctl
+- **Staying on one screen** (new): a lock (Advanced page, tray, `rinflowctl
   lock`, Scroll Lock while driving), a delay before crossing and a margin
   around screen corners.
 - **`rinflowctl`** (new): status, layout, placing devices by side or by

@@ -413,7 +413,7 @@ dependencies = [
 
 [[package]]
 name = "fakedesk"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "env_logger",
  "log",
@@ -1485,7 +1485,7 @@ dependencies = [
 
 [[package]]
 name = "rinflow"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "env_logger",
  "glib-build-tools",
@@ -1501,7 +1501,7 @@ dependencies = [
 
 [[package]]
 name = "rinflow-agent"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "env_logger",
  "fuser",
@@ -1539,7 +1539,7 @@ dependencies = [
 
 [[package]]
 name = "rinflow-input"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "ashpd",
  "futures-util",
@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "rinflow-shell"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "log",
  "rinflow-core",

@@ -226,7 +226,7 @@ can be pasted on the next once the pointer has moved there.
 
 | | |
 | --- | --- |
-| **Keep the pointer on this screen** | In Settings, the tray menu, or `rinflowctl lock [on\|off\|toggle]`. At home the edges stop leading anywhere; while another device is controlled the pointer stays on it. Not kept between runs. |
+| **Keep the pointer on this screen** | On the Advanced page, the tray menu, or `rinflowctl lock [on\|off\|toggle]`. At home the edges stop leading anywhere; while another device is controlled the pointer stays on it. Not kept between runs. |
 | Scroll Lock | While another device is controlled, Scroll Lock does the same (it is not sent on); a setting turns that off. |
 | Shortcuts | The InputCapture portal starts a capture only at an edge, so a key cannot send the pointer *to* another device. Coming back can be a key: bind `rinflowctl home` (or `rinflowctl lock toggle`) in the desktop's keyboard shortcuts. Ctrl+Alt+Esc always comes home. |
 | **Delay before crossing** | The pointer crosses only after pushing against the edge for this long (0–2000 ms); stopping or pulling back gives it back. |

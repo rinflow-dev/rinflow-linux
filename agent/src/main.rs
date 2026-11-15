@@ -367,7 +367,7 @@ fn log_core_event(event: &serde_json::Value) {
 fn core_stopped_message(port: u16, detail: &str) -> Text {
     if detail.starts_with("control port failed") || detail.starts_with("discovery socket failed") {
         // Translators: {detail} is the system's error message, in English.
-        msg("Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Choose another port in Settings, then restart the agent. ({detail})")
+        msg("Rinflow couldn't use UDP port {port}; another copy of Rinflow may be running. Quit it, then restart the agent. ({detail})")
             .arg("port", port.to_string())
             .arg("detail", detail)
     } else {

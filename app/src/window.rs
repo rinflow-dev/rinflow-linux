@@ -23,6 +23,8 @@ mod imp {
         #[template_child]
         pub error_banner: TemplateChild<adw::Banner>,
         #[template_child]
+        pub input_banner: TemplateChild<adw::Banner>,
+        #[template_child]
         pub pairing_banner: TemplateChild<adw::Banner>,
         #[template_child]
         pub transfer_banner: TemplateChild<adw::Banner>,
@@ -30,18 +32,6 @@ mod imp {
         pub menu_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub stack: TemplateChild<adw::ViewStack>,
-        #[template_child]
-        pub capture_row: TemplateChild<adw::ActionRow>,
-        #[template_child]
-        pub capture_icon: TemplateChild<gtk::Image>,
-        #[template_child]
-        pub capture_retry: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub emulation_row: TemplateChild<adw::ActionRow>,
-        #[template_child]
-        pub emulation_icon: TemplateChild<gtk::Image>,
-        #[template_child]
-        pub emulation_retry: TemplateChild<gtk::Button>,
         #[template_child]
         pub layout_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
@@ -72,8 +62,6 @@ mod imp {
         pub theme_row: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub language_row: TemplateChild<adw::ComboRow>,
-        #[template_child]
-        pub port_spin: TemplateChild<gtk::SpinButton>,
         #[template_child]
         pub name_row: TemplateChild<adw::ActionRow>,
         #[template_child]
@@ -260,12 +248,7 @@ impl RinflowWindow {
                 }
             }
         ));
-        imp.capture_retry.connect_clicked(glib::clone!(
-            #[strong]
-            client,
-            move |_| client.retry_input()
-        ));
-        imp.emulation_retry.connect_clicked(glib::clone!(
+        imp.input_banner.connect_button_clicked(glib::clone!(
             #[strong]
             client,
             move |_| client.retry_input()
@@ -337,16 +320,6 @@ impl RinflowWindow {
                     window,
                     move || window.switch_language(language)
                 ));
-            }
-        ));
-        imp.port_spin.connect_value_changed(glib::clone!(
-            #[weak(rename_to = window)]
-            self,
-            move |spin| {
-                if window.imp().applying.get() {
-                    return;
-                }
-                window.imp().client.update_setting("port", (spin.value_as_int() as u16).into());
             }
         ));
 
@@ -514,8 +487,6 @@ impl RinflowWindow {
             .set_selected(THEMES.iter().position(|t| *t == settings.theme).unwrap_or(0) as u32);
         imp.language_row
             .set_selected(LANGUAGES.iter().position(|l| *l == settings.language).unwrap_or(0) as u32);
-        imp.port_spin
-            .set_value(f64::from(settings.port.unwrap_or(snapshot.control_port)));
         imp.applying.set(false);
     }
 
@@ -549,8 +520,14 @@ impl RinflowWindow {
             None => imp.transfer_banner.set_revealed(false),
         }
 
-        apply_backend(&imp.capture_row, &imp.capture_icon, &imp.capture_retry, &snapshot.input.capture, true);
-        apply_backend(&imp.emulation_row, &imp.emulation_icon, &imp.emulation_retry, &snapshot.input.emulation, false);
+        match input_notice(snapshot) {
+            Some((title, retry)) => {
+                imp.input_banner.set_title(&title);
+                imp.input_banner.set_button_label(retry.then(|| tr("Ask Again")).as_deref());
+                imp.input_banner.set_revealed(true);
+            }
+            None => imp.input_banner.set_revealed(false),
+        }
 
         self.rebuild_devices(snapshot);
         imp.clipboard_row.set_subtitle(&clipboard_subtitle(snapshot));
@@ -898,7 +875,7 @@ impl RinflowWindow {
     fn add_device_dialog(&self) {
         let dialog = adw::AlertDialog::builder()
             .heading(tr("Add a Device by Address"))
-            .body(tr("For networks that don't carry discovery (guest Wi-Fi, VPNs): the other device's IP address or name. Only one of the two needs the other's address."))
+            .body(tr("The other device's IP address or name, for networks where it isn't found by itself."))
             .close_response("cancel")
             .default_response("add")
             .build();
@@ -941,50 +918,34 @@ impl RinflowWindow {
     }
 }
 
-fn apply_backend(row: &adw::ActionRow, icon: &gtk::Image, retry: &gtk::Button, view: &BackendView, capture: bool) {
-    for class in ["success", "warning", "error"] {
-        row.remove_css_class(class);
-    }
-    let (subtitle, icon_name, class) = match view.state {
-        BackendState::Ready => (
-            if capture {
-                tr("Ready: move the pointer off the edge toward a placed device.")
-            } else {
-                tr("Ready: placed devices can move their pointer here.")
-            },
-            "emblem-ok-symbolic",
-            Some("success"),
-        ),
-        BackendState::Prompting => (view.detail.translate(), "dialog-question-symbolic", Some("warning")),
-        BackendState::Waiting => (
-            if view.detail.is_empty() {
-                tr("Connecting to the desktop…")
-            } else {
-                view.detail.translate()
-            },
-            "content-loading-symbolic",
-            None,
-        ),
-        BackendState::Denied => (view.detail.translate(), "dialog-warning-symbolic", Some("error")),
-        BackendState::Unavailable => (view.detail.translate(), "action-unavailable-symbolic", None),
+/// What to say about controlling and being controlled, and whether asking
+/// again can help: nothing while both work or are still starting. The
+/// desktop asks for the permissions in its own dialogs; this is for when
+/// one was declined, is being asked, or cannot be had here.
+fn input_notice(snapshot: &Snapshot) -> Option<(String, bool)> {
+    let urgency = |view: &BackendView| match view.state {
+        BackendState::Denied => Some(0),
+        BackendState::Prompting => Some(1),
+        BackendState::Unavailable => Some(2),
+        BackendState::Waiting | BackendState::Ready => None,
     };
-    row.set_subtitle(&subtitle);
-    icon.set_icon_name(Some(icon_name));
-    if let Some(class) = class {
-        row.add_css_class(class);
-    }
-    retry.set_visible(matches!(view.state, BackendState::Denied | BackendState::Waiting) && !view.detail.is_empty());
+    [&snapshot.input.capture, &snapshot.input.emulation]
+        .into_iter()
+        .filter(|view| !view.detail.is_empty())
+        .filter_map(|view| urgency(view).map(|urgency| (urgency, view)))
+        .min_by_key(|(urgency, _)| *urgency)
+        .map(|(_, view)| (view.detail.translate(), view.state == BackendState::Denied))
 }
 
-/// What the clipboard switch says: what it does, or why it can't yet.
+/// What the clipboard switch says: nothing, or why it can't work yet.
 fn clipboard_subtitle(snapshot: &Snapshot) -> String {
     let emulation = snapshot.input.emulation.state;
     if snapshot.input.clipboard || !snapshot.settings.clipboard {
-        tr("Text and images copied here go along when the pointer moves to another device, and come back with it.")
+        String::new()
     } else if emulation == BackendState::Ready {
-        tr("This desktop doesn't share its clipboard with Rinflow. It needs the clipboard portal (GNOME 45 or Plasma 6.2 and newer).")
+        tr("Not supported by this desktop (needs GNOME 45 or Plasma 6.2).")
     } else {
-        tr("Available once other devices may control this one: the clipboard comes with that permission.")
+        tr("Available once other devices may control this one.")
     }
 }
 

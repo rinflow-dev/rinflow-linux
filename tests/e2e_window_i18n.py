@@ -20,7 +20,7 @@ step = Steps()
 
 # What to look for: a template string, a string from the code, and the
 # agent's message (no Wayland session here, so it says X11 isn't supported).
-STRINGS = ["Controlling other devices", "Settings", "X11 sessions aren't supported yet; use a Wayland session."]
+STRINGS = ["My Devices", "Settings", "X11 sessions aren't supported yet; use a Wayland session."]
 CATALOGS = {"zh-CN": "zh_CN", "ja-JP": "ja"}
 
 

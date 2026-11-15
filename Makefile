@@ -25,7 +25,7 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall locale pot check
+.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall dev-desktop undev-desktop locale pot check
 
 # `make` alone runs the window; `make all` only builds.
 .DEFAULT_GOAL := run
@@ -223,6 +223,22 @@ install: release locale
 	install -Dm644 target/rinflow-agent.service $(DESTDIR)$(PREFIX)/lib/systemd/user/rinflow-agent.service
 	for mo in $(MO); do lang=$$(basename $$(dirname $$(dirname $$mo))); install -Dm644 $$mo $(DESTDIR)$(LOCALEDIR)/$$lang/LC_MESSAGES/rinflow.mo; done
 	@echo "Installed. Start the agent for this user with: systemctl --user enable --now rinflow-agent"
+
+# For running from the build directory: the desktop only shows Rinflow's
+# icon and name for a window whose desktop entry it can find. Puts the
+# entry (starting this build) and the icons under ~/.local/share.
+USER_DATA := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)
+dev-desktop: target/data/$(APP_ID).desktop
+	mkdir -p $(USER_DATA)/applications
+	sed 's|^Exec=rinflow$$|Exec=$(CURDIR)/target/debug/rinflow|' target/data/$(APP_ID).desktop > $(USER_DATA)/applications/$(APP_ID).desktop
+	install -Dm644 data/icons/$(APP_ID).svg $(USER_DATA)/icons/hicolor/scalable/apps/$(APP_ID).svg
+	install -Dm644 data/icons/$(APP_ID)-symbolic.svg $(USER_DATA)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
+	-gtk4-update-icon-cache -q -t -f $(USER_DATA)/icons/hicolor
+	-update-desktop-database -q $(USER_DATA)/applications
+
+undev-desktop:
+	rm -f $(USER_DATA)/applications/$(APP_ID).desktop
+	rm -f $(USER_DATA)/icons/hicolor/scalable/apps/$(APP_ID).svg $(USER_DATA)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/rinflow $(DESTDIR)$(PREFIX)/bin/rinflow-agent $(DESTDIR)$(PREFIX)/bin/rinflowctl
