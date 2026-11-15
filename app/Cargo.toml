@@ -39,6 +39,8 @@ Windows PC, Linux machine or Steam Deck next to it. This package holds the \
 background agent and the settings window for Linux desktops (GNOME and KDE \
 on Wayland, through the input portals)."""
 section = "utils"
+# prerm: stops the running agent and window before the files go.
+maintainer-scripts = "debian/"
 priority = "optional"
 # fuse3: pasting files copied on another device (fusermount3).
 depends = "$auto, libadwaita-1-0 (>= 1.5), fuse3"

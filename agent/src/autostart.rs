@@ -24,10 +24,12 @@ pub fn set(enabled: bool) -> io::Result<()> {
         };
     }
     let exe = std::env::current_exe()?;
+    // TryExec: once Rinflow is uninstalled the desktop skips this entry
+    // instead of failing to start it at every sign-in.
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName=Rinflow Agent\nExec={}\nIcon={}\nNoDisplay=true\nX-GNOME-Autostart-Phase=Applications\nX-KDE-autostart-after=panel\n",
-        exe.display(),
-        paths::APP_ID
+        "[Desktop Entry]\nType=Application\nName=Rinflow Agent\nExec={exe}\nTryExec={exe}\nIcon={icon}\nNoDisplay=true\nX-GNOME-Autostart-Phase=Applications\nX-KDE-autostart-after=panel\n",
+        exe = exe.display(),
+        icon = paths::APP_ID
     );
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
