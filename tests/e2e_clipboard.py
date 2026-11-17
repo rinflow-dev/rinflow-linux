@@ -233,11 +233,29 @@ if __name__ == "__main__":
     step("nothing was written on B but what was read", not os.path.exists(downloads))
     step("back home", back())
 
+    # A copies other files right after: B's old files go and the new ones
+    # come in one breath, and the new ones must still be pasted (the desktop
+    # says "no owner" for the old ones after the new ones were offered).
+    second = os.path.join(source, "second.bin")
+    with open(second, "wb") as f:
+        f.write(b"the second copy" * 1000)
+    sets_b = fake_b.state()["selection_sets"]
+    copy(fake_a, ("text/uri-list", ("file://" + second + "\r\n").encode()))
+    step("A crosses with other files", cross())
+    step("B's desktop is offered the new files", fake_b.wait(lambda s: s["selection_sets"] > sets_b and s["offered_types"][:1] == ["text/uri-list"], 30), json.dumps(fake_b.state()["offered_types"]))
+    b.pump(1.0)
+    pasted = paste(fake_b, "text/uri-list")
+    again = [urllib.parse.unquote(line[len("file://"):]) for line in (pasted or b"").decode().split("\r\n") if line.startswith("file://")] if isinstance(pasted, bytes) else []
+    step("the new files are still on B's clipboard a moment later", len(again) == 1 and again[0].endswith("/second.bin"), repr(pasted))
+    step("... and can be read", bool(again) and open(again[0], "rb").read() == b"the second copy" * 1000)
+    step("back home", back())
+
     # A copies something else: the files are gone from B.
     copy(fake_a, ("text/plain;charset=utf-8", b"something else"))
     step("A crosses with text", cross())
     step("B is offered the text", fake_b.wait(lambda s: s["offered_types"][:1] == ["text/plain;charset=utf-8"], 10), json.dumps(fake_b.state()["offered_types"]))
-    b.pump(2.5)
+    # Files just read stay until their transfer is closed, a few seconds on.
+    b.wait(lambda s: os.listdir(mount) == [], 15)
     step("the files A offered before are no longer found", not os.path.exists(folder) and os.listdir(mount) == [], repr(os.listdir(mount)))
     step("back home", back())
 

@@ -36,12 +36,15 @@ use zbus::zvariant::{OwnedObjectPath, OwnedValue};
 use rinflow_core::{Clipboard, ClipboardFormat, MAX_CLIPBOARD_SIZE, MIME_HTML, MIME_PNG, MIME_TEXT};
 use std::os::fd::OwnedFd;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
 /// How long one application may take to hand over or take one format.
 const TRANSFER_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long after giving the selection up the desktop's "no owner" is taken
+/// for the answer to that.
+const GIVE_UP_ECHO: Duration = Duration::from_secs(2);
 
 /// What Wayland applications call UTF-8 text, best first. GTK and Qt offer
 /// all of the first four; X11 programs through Xwayland the last two.
@@ -105,6 +108,13 @@ pub async fn serve(
     let mut desktop_types: Vec<String> = Vec::new();
     let mut enabled = false;
     let mut files = false;
+    // When this session last gave the selection up (`WithdrawFiles`). The
+    // desktop then says that the selection has no owner, and may say it
+    // after the next offer was made: taken for another application's
+    // copy, that would drop the offer just made, and nothing would be
+    // pasted. (A peer that copies files twice in a row does exactly this:
+    // its old files go, its new ones come.)
+    let mut gave_up: Option<Instant> = None;
 
     loop {
         tokio::select! {
@@ -130,7 +140,10 @@ pub async fn serve(
                         // Without a list of types the selection is given
                         // up (Mutter refuses an empty list).
                         match portal.set_selection(&session, SetSelectionOptions::default()).await {
-                            Ok(()) => log::info!("clipboard: a peer's files are gone; emptied"),
+                            Ok(()) => {
+                                log::info!("clipboard: a peer's files are gone; emptied");
+                                gave_up = Some(Instant::now());
+                            }
                             Err(error) => log::warn!("clipboard: SetSelection: {error}"),
                         }
                     }
@@ -160,6 +173,12 @@ pub async fn serve(
                 }
                 if change.session_is_owner {
                     // Our own SetSelection coming back.
+                    continue;
+                }
+                if change.mime_types.is_empty() && gave_up.take().is_some_and(|when| when.elapsed() < GIVE_UP_ECHO) {
+                    // Our own giving up coming back: what is offered now,
+                    // if anything, was offered after it.
+                    desktop_types.clear();
                     continue;
                 }
                 offered = None;

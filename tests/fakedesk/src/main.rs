@@ -477,6 +477,25 @@ impl ClipboardIface {
             state.snapshot.selection_sets += 1;
             state.desktop_clipboard.clear();
         }
+        if types.is_empty() {
+            // The selection given up. As Mutter does: "no owner", with no
+            // options at all, and not before the call has returned (late
+            // enough here to land after an offer made right behind it).
+            let connection = connection.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                let _ = connection
+                    .emit_signal(
+                        None::<zbus::names::BusName<'_>>,
+                        DESKTOP_PATH,
+                        "org.freedesktop.portal.Clipboard",
+                        "SelectionOwnerChanged",
+                        &(session, HashMap::<String, OwnedValue>::new()),
+                    )
+                    .await;
+            });
+            return;
+        }
         // As Mutter does: the new owner is announced to the session too.
         let _ = connection
             .emit_signal(
