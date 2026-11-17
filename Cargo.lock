@@ -840,6 +840,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "if-addrs"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0a05c691e1fae256cf7013d99dad472dc52d5543322761f83ec8d47eab40d2b"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1520,10 +1530,11 @@ dependencies = [
 
 [[package]]
 name = "rinflow-core"
-version = "0.1.0"
+version = "0.0.1"
+source = "git+https://github.com/rinflow-dev/rinflow-core?rev=dadb0fdca5657ed6735e2b42f1f4c43c5e31647a#dadb0fdca5657ed6735e2b42f1f4c43c5e31647a"
 dependencies = [
  "base64 0.22.1",
- "bytes",
+ "if-addrs",
  "jni",
  "libc",
  "quinn",

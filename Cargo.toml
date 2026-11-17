@@ -11,7 +11,12 @@ license = "MPL-2.0"
 publish = false
 
 [workspace.dependencies]
-rinflow-core = { path = "../rinflow-core" }
+# Pinned to the commit this version was built and tested with (rinflow-core
+# 0.0.1). To work on the core beside this repository, point it back at the
+# checkout in an untracked .cargo/config.toml:
+#   [patch."https://github.com/rinflow-dev/rinflow-core"]
+#   rinflow-core = { path = "../rinflow-core" }
+rinflow-core = { git = "https://github.com/rinflow-dev/rinflow-core", rev = "dadb0fdca5657ed6735e2b42f1f4c43c5e31647a" }
 rinflow-shell = { path = "shell" }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }

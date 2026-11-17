@@ -238,12 +238,14 @@ dev-desktop: target/data/$(APP_ID).desktop
 	sed 's|^Exec=rinflow$$|Exec=$(CURDIR)/target/debug/rinflow|' target/data/$(APP_ID).desktop > $(USER_DATA)/applications/$(APP_ID).desktop
 	install -Dm644 data/icons/$(APP_ID).svg $(USER_DATA)/icons/hicolor/scalable/apps/$(APP_ID).svg
 	install -Dm644 data/icons/$(APP_ID)-symbolic.svg $(USER_DATA)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
-	-gtk4-update-icon-cache -q -t -f $(USER_DATA)/icons/hicolor
 	-update-desktop-database -q $(USER_DATA)/applications
 
+# No icon cache is written there: a cache that outlives its icons hides the
+# installed ones (the desktop believes the cache and finds no file).
 undev-desktop:
 	rm -f $(USER_DATA)/applications/$(APP_ID).desktop
 	rm -f $(USER_DATA)/icons/hicolor/scalable/apps/$(APP_ID).svg $(USER_DATA)/icons/hicolor/symbolic/apps/$(APP_ID)-symbolic.svg
+	-update-desktop-database -q $(USER_DATA)/applications
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/rinflow $(DESTDIR)$(PREFIX)/bin/rinflow-agent $(DESTDIR)$(PREFIX)/bin/rinflowctl

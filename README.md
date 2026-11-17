@@ -75,13 +75,14 @@ tests/e2e_gnome.py         the crossing on two real Mutter (GNOME 46) desktops, 
 build-aux/                 Flatpak manifest, the Ubuntu 24.04 build container
 ```
 
-`rinflow-core` is a path dependency and must be checked out next to this
-directory:
+`rinflow-core` is a git dependency pinned to one commit in `Cargo.toml`, so
+this repository builds by itself. To work on the core at the same time,
+check it out next to this directory and point Cargo at it in an untracked
+`.cargo/config.toml`:
 
-```
-workspace/
-  rinflow-core/
-  rinflow-linux/
+```toml
+[patch."https://github.com/rinflow-dev/rinflow-core"]
+rinflow-core = { path = "../rinflow-core" }
 ```
 
 ## Building

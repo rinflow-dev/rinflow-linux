@@ -127,7 +127,8 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
 - **Several monitors and fractional scaling** on real hardware.
 - **The Flatpak** build. `build-aux/cargo-sources.json` is behind
   `Cargo.lock` (15 crates, `fuser` among them) and must be regenerated
-  before it builds.
+  before it builds; its manifest also still expects `rinflow-core` as a
+  directory beside this one, which it no longer is.
 
 ## Known limits
 
@@ -139,6 +140,11 @@ GNOME 51 and Plasma 6.8 (Fedora 45) for permission persistence
 - Pasting a peer's files has been run between two Linux agents
   (`make e2e-clipboard`, files read through the mount) and from a Mac into
   a real file manager, not yet with a Windows PC.
+- While this device controls another one its own pointer stays visible at
+  the edge it left through. Mutter up to 50 does not hide it during input
+  capture (checked in the 48.7 source; `main` does, with
+  `meta_cursor_tracker_inhibit_cursor_visibility`), and an application has
+  no way to. Left as it is.
 - A shortcut cannot send the pointer to another device: the InputCapture
   portal starts a capture only at an edge. It can bring it home.
 - The tray icon, notifications, the lock, the crossing delay and copied files have only
