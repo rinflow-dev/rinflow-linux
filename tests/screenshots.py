@@ -11,6 +11,8 @@ from e2e_canvas import FakeAgent, template, LOCAL, MAC
 WINDOW, AGENT, OUT = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2]), os.path.abspath(sys.argv[3])
 # The window's default size, drawn at twice the density.
 SCALE, WIDTH, HEIGHT = 2, 780, 680
+# In pixels of the picture: the frame GTK draws, and the corner radius.
+FRAME, RADIUS = 10, 26
 
 
 def shot(base, language, theme):
@@ -59,7 +61,18 @@ def shot(base, language, theme):
             raise SystemExit("the window did not appear")
         time.sleep(3)
         path = os.path.join(OUT, f"devices-{language}-{theme}.png")
-        subprocess.run(["import", "-window", "root", "-crop", f"{WIDTH * SCALE}x{HEIGHT * SCALE}+0+0", "+repage", path], check=True)
+        # Without a compositor GTK draws the window's shadow area as a
+        # frame of two lines, FRAME pixels deep: cut inside it, then round
+        # the corners as a desktop would and draw one hairline around.
+        w, h = WIDTH * SCALE - 2 * FRAME, HEIGHT * SCALE - 2 * FRAME
+        line = "rgba(255,255,255,0.16)" if theme == "dark" else "rgba(0,0,0,0.14)"
+        shape = f"roundrectangle 1,1 {w - 2},{h - 2} {RADIUS},{RADIUS}"
+        subprocess.run(["import", "-window", "root", "-crop", f"{w}x{h}+{FRAME}+{FRAME}", "+repage", path], check=True)
+        subprocess.run(["convert", path, "-alpha", "set",
+                        "(", "-size", f"{w}x{h}", "xc:none", "-fill", "white", "-draw", shape, ")",
+                        "-compose", "DstIn", "-composite",
+                        "-compose", "Over", "-fill", "none", "-stroke", line, "-strokewidth", "2", "-draw", shape,
+                        path], check=True)
         print(path)
     finally:
         window.terminate()
