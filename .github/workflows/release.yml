@@ -1,0 +1,117 @@
+# Builds the Debian packages for x86_64 and arm64, each on a runner of its
+# own architecture, and attaches them to the GitHub release of a pushed
+# version tag (v0.0.1). Run by hand (workflow_dispatch) it only builds, and
+# keeps the packages as artifacts of the run.
+#
+# Ubuntu 24.04 is the oldest system the packages are meant for, so what is
+# built here also installs on Debian 13 and newer Ubuntu releases.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libgtk-4-dev libadwaita-1-dev \
+            blueprint-compiler gettext desktop-file-utils appstream
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-deb
+          key: cargo-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ matrix.arch }}-
+
+      - name: Install cargo-deb
+        run: command -v cargo-deb || cargo install cargo-deb --locked
+
+      - name: Unit tests
+        run: cargo test --workspace
+
+      - name: Translations, desktop entry and metainfo
+        run: make check
+
+      - name: Build the package
+        run: make deb
+
+      - name: Check the package
+        run: |
+          deb=$(ls target/debian/rinflow_*_${{ matrix.arch }}.deb)
+          dpkg-deb -I "$deb"
+          # The version in the package is the tag's, when there is one.
+          version=$(dpkg-deb -f "$deb" Version)
+          if [ "${GITHUB_REF_TYPE}" = tag ] && [ "v${version%-*}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::package version ${version} does not match tag ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+          sudo apt-get install -y --no-install-recommends "./$deb"
+          rinflowctl --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: target/debian/rinflow_*_${{ matrix.arch }}.deb
+          if-no-files-found: error
+
+  release:
+    name: Attach to the release
+    needs: package
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          merge-multiple: true
+
+      - name: Checksums
+        run: sha256sum rinflow_*.deb | tee SHA256SUMS
+
+      # The release may already be there (written by hand with its notes):
+      # then the packages replace the ones it holds.
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --clobber rinflow_*.deb SHA256SUMS
+          else
+            gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --title "Rinflow for Linux ${GITHUB_REF_NAME#v}" --generate-notes rinflow_*.deb SHA256SUMS
+          fi
