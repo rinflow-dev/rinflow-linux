@@ -26,7 +26,7 @@ finish-args:
   # The tray icon (agent/src/tray.rs).
   - --talk-name=org.kde.StatusNotifierWatcher
   # Files copied on this device are read where they are, which needs more
-  # than this: see the README ("Files"). Files copied on other devices
+  # than this: see docs/design.md ("Copied files"). Files copied on other devices
   # cannot be pasted from a sandbox (no FUSE).
   # Steam Deck Gaming Mode: gamescope's own EIS socket (see input/src/ei_discover.rs).
   - --filesystem=xdg-run/gamescope-0-ei
