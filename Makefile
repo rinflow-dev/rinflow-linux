@@ -25,7 +25,7 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall deb dev-desktop undev-desktop locale pot check
+.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall deb deb-arm64 dev-desktop undev-desktop locale pot check
 
 # `make` alone runs the window; `make all` only builds.
 .DEFAULT_GOAL := run
@@ -228,6 +228,13 @@ install: release locale
 # target/debian/.
 deb: release locale
 	cargo deb -p rinflow --no-build
+
+# The arm64 package, cross-built on x86_64 in a Debian 13 container (needs
+# docker); it lands beside the other one in target/debian/.
+deb-arm64:
+	docker build -q -t rinflow-deb-arm64 -f build-aux/Dockerfile.deb-arm64 build-aux
+	docker run --rm --user $$(id -u):$$(id -g) -e HOME=/tmp -v "$(CURDIR)":/src rinflow-deb-arm64 sh -c \
+		'make locale && cargo build --release --target aarch64-unknown-linux-gnu && cargo deb -p rinflow --no-build --target aarch64-unknown-linux-gnu'
 
 # For running from the build directory: the desktop only shows Rinflow's
 # icon and name for a window whose desktop entry it can find. Puts the

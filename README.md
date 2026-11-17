@@ -133,7 +133,8 @@ flatpak run com.rinflow.rinflow
 `build-aux/cargo-sources.json` pins every crate; regenerate it after
 `Cargo.lock` changes with `flatpak-cargo-generator.py Cargo.lock -o build-aux/cargo-sources.json`
 (from flatpak-builder-tools). A `.deb` comes from `make deb`
-(needs `cargo install cargo-deb`) and lands in `target/debian/`.
+(needs `cargo install cargo-deb`) and lands in `target/debian/`; `make deb-arm64`
+cross-builds the arm64 one in a container (needs docker).
 
 ## Translations
 

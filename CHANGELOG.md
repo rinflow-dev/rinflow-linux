@@ -15,11 +15,11 @@ First Linux version.
 - Shared clipboard for text, images and files, on by default; files are transferred when they are pasted
 - Tray icon, a notification when a device asks to pair, and `rinflowctl` for the command line
 - English, Simplified Chinese and Japanese interface, and light and dark themes
-- Debian package for x86_64
+- Debian packages for x86_64 and arm64
 
 ### Known issues
 
-- Tested on GNOME 48 (Debian 13) with a Mac. Windows as the other device, KDE as the controlling side, several monitors and Steam Deck hardware have not been tested.
+- Tested on GNOME 48 (Debian 13, x86_64) with a Mac. The arm64 package has only been installed and started in emulation, not used on a desktop. Windows as the other device, KDE as the controlling side, several monitors and Steam Deck hardware have not been tested.
 - While this device controls another one, its own pointer stays visible at the screen edge: GNOME up to 50 does not hide it during input capture.
 - Before GNOME 51 the desktop asks for the permission to control other devices at every sign-in.
 - Pasting files copied on another device needs FUSE (`fuse3`, which the package installs). Without it nothing is pasted and nothing says why.
