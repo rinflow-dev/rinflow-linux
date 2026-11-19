@@ -472,7 +472,7 @@ fn play(
 }
 
 /// Whole notches in `points` plus what was left over, and the new remainder.
-fn notches(points: f64, rest: f64) -> (i32, f64) {
+pub(crate) fn notches(points: f64, rest: f64) -> (i32, f64) {
     let total = points / POINTS_PER_NOTCH + rest;
     let whole = total.trunc();
     (whole as i32, total - whole)

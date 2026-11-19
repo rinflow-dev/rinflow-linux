@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rinflow 0.0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 15:35+0900\n"
+"POT-Creation-Date: 2026-11-17 19:28+0900\n"
 "PO-Revision-Date: 2026-11-04 12:00+0900\n"
 "Last-Translator: Rinflow\n"
 "Language-Team: Chinese (simplified)\n"
@@ -15,46 +15,46 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: agent/src/backends.rs:275
+#: agent/src/backends.rs:285
 msgid "The desktop is asking whether Rinflow may capture input"
 msgstr "桌面正在询问是否允许 Rinflow 捕获输入"
 
-#: agent/src/backends.rs:280
+#: agent/src/backends.rs:290
 msgid "This device can't control others: the permission was not given."
 msgstr "本机无法控制其他设备：未获得权限。"
 
-#: agent/src/backends.rs:302
+#: agent/src/backends.rs:312
 msgid "The desktop is asking whether Rinflow may control this device"
 msgstr "桌面正在询问是否允许 Rinflow 控制本机"
 
-#: agent/src/backends.rs:311
+#: agent/src/backends.rs:321
 msgid "Other devices can't control this one: the permission was not given."
 msgstr "其他设备无法控制本机：未获得权限。"
 
-#: agent/src/backends.rs:364
+#: agent/src/backends.rs:398
 msgid "Connecting to the desktop's input capture portal…"
 msgstr "正在连接桌面的输入捕获门户…"
 
-#: agent/src/backends.rs:401
+#: agent/src/backends.rs:440
 msgid "Connecting input playback…"
 msgstr "正在连接输入注入…"
 
-#: agent/src/backends.rs:425
+#: agent/src/backends.rs:464
 msgid ""
 "In Gaming Mode this device can be controlled by others, but can't control "
 "them."
 msgstr "游戏模式下本机只能被其他设备控制，不能控制别的设备。"
 
-#: agent/src/backends.rs:429
-msgid "X11 sessions aren't supported yet; use a Wayland session."
-msgstr "X11 会话暂不支持；请使用 Wayland 会话。"
-
-#: agent/src/backends.rs:434
+#: agent/src/backends.rs:468
 msgid "No graphical session was found."
 msgstr "没有找到图形会话。"
 
+#: agent/src/main.rs:252
+msgid "Can't share the copied files"
+msgstr "无法共享复制的文件"
+
 #. Translators: {detail} is the system's error message, in English.
-#: agent/src/main.rs:370
+#: agent/src/main.rs:379
 msgid ""
 "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
 "running. Quit it, then restart the agent. ({detail})"
@@ -62,41 +62,55 @@ msgstr ""
 "Rinflow 无法使用 UDP 端口 {port}（可能有另一个 Rinflow 正在运行）。请先退出"
 "它，然后重新启动后台服务。（{detail}）"
 
-#: agent/src/main.rs:374
+#: agent/src/main.rs:383
 msgid "Rinflow's core didn't start: {detail}"
 msgstr "Rinflow 核心没有启动：{detail}"
 
-#: agent/src/main.rs:420
+#. Translators: {limit} is a number of folder levels.
+#: agent/src/main.rs:422
+msgid ""
+"The folders are nested more than {limit} levels deep to share. Zip them into "
+"one file, then copy that."
+msgstr "文件夹嵌套超过 {limit} 层，无法共享。请先压缩成一个 zip 文件再复制。"
+
+#. Translators: {limit} is a number, 10000.
+#: agent/src/main.rs:425
+msgid ""
+"More than {limit} files and folders were copied, too many to share. Zip them "
+"into one file, then copy that."
+msgstr "复制的文件和文件夹超过 {limit} 个，无法共享。请先压缩成一个 zip 文件再复制。"
+
+#: agent/src/main.rs:443
 msgid ""
 "Files copied on {name} can't be pasted here: update Rinflow on that device."
 msgstr "在 {name} 上复制的文件无法粘贴到这里：请更新那台设备上的 Rinflow。"
 
 #. Translators: {name} is another device's name.
-#: agent/src/notify.rs:124
+#: agent/src/notify.rs:126
 msgid "{name} wants to pair"
 msgstr "“{name}”请求配对"
 
-#: agent/src/notify.rs:125 agent/src/tray.rs:133
+#: agent/src/notify.rs:127 agent/src/tray.rs:133
 msgid "Open Rinflow"
 msgstr "打开 Rinflow"
 
-#: agent/src/notify.rs:125 app/src/window.rs:787
+#: agent/src/notify.rs:127 app/src/window.rs:787
 msgid "Reject"
 msgstr "拒绝"
 
-#: agent/src/notify.rs:126
+#: agent/src/notify.rs:128
 msgid "Open Rinflow to compare the pairing code."
 msgstr "打开 Rinflow 核对配对码。"
 
-#: agent/src/services.rs:43
+#: agent/src/services.rs:50
 msgid "launch_at_login must be true or false"
 msgstr "launch_at_login 需要 true 或 false"
 
-#: agent/src/services.rs:45
+#: agent/src/services.rs:52
 msgid "Couldn't change “Start when I sign in”: {error}"
 msgstr "无法设置“登录时启动”：{error}"
 
-#: agent/src/services.rs:105
+#: agent/src/services.rs:112
 msgid "The core is shutting down"
 msgstr "核心正在关闭"
 
@@ -139,15 +153,15 @@ msgstr "将指针锁定在当前屏幕"
 msgid "Quit"
 msgstr "退出"
 
-#: app/src/agent.rs:127
+#: app/src/agent.rs:128
 msgid "The agent couldn't be started: {error}"
 msgstr "无法启动后台服务：{error}"
 
-#: app/src/agent.rs:132
+#: app/src/agent.rs:133
 msgid "The agent isn't answering ({error})"
 msgstr "后台服务没有响应（{error}）"
 
-#: app/src/agent.rs:163
+#: app/src/agent.rs:164
 msgid ""
 "The agent and this window are different versions; update both ({version} / "
 "{protocol})"

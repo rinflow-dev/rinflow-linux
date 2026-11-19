@@ -1,14 +1,16 @@
 //! Keeps the input backends running for as long as the desktop allows:
 //! starts them, reports their state to the window, and starts them again
-//! after they are lost (compositor restarted, Steam Deck switched modes),
-//! with a growing pause so a desktop without them is not hammered.
+//! after they are lost (compositor or X server restarted, Steam Deck
+//! switched modes), with a growing pause so a desktop without them is not
+//! hammered. Which backends: the portals and libei on Wayland, the X
+//! server's own extensions on X11, gamescope's socket in Gaming Mode.
 
 use rinflow_core::LcInputEvent;
 use rinflow_shell::i18n::{Text, msg};
 use rinflow_shell::state::{BackendState, BackendView, SharedState};
 use rinflow_input::{
     CaptureCommand, CaptureEvent, ClipboardCommand, ClipboardEvent, ClipboardLink, EisSource,
-    EmulationEvent,
+    EmulationEvent, X11Display,
 };
 use std::cell::Cell;
 use std::path::PathBuf;
@@ -27,19 +29,29 @@ const RESCAN: Duration = Duration::from_secs(5);
 use crate::desktop::{self, Desktop};
 
 /// The desktop now, from the agent's own environment and the systemd user
-/// manager's (see `desktop.rs`).
-async fn detect_desktop(bus: Option<&zbus::Connection>) -> Desktop {
+/// manager's (see `desktop.rs`), and its X server when it is an X11 one.
+async fn detect_desktop(bus: Option<&zbus::Connection>) -> (Desktop, Option<X11Display>) {
     let manager = match bus {
         Some(bus) => desktop::manager_variables(bus).await,
         None => None,
     };
-    desktop::decide(
-        &desktop::own_variables(),
-        manager.as_ref(),
-        &desktop::runtime_directory(),
-        desktop::is_socket,
-        rinflow_input::ei_discover::find().is_some(),
-    )
+    look(manager.as_ref())
+}
+
+fn look(manager: Option<&desktop::Variables>) -> (Desktop, Option<X11Display>) {
+    let own = desktop::own_variables();
+    let desktop = desktop::decide(&own, manager, &desktop::runtime_directory(), desktop::is_socket, rinflow_input::ei_discover::find().is_some());
+    let x11 = if desktop == Desktop::X11 { desktop::x11_display(&own, manager, desktop::is_socket) } else { None };
+    (desktop, x11)
+}
+
+/// Where the emulation backend plays a peer's input.
+#[derive(Clone, Debug, PartialEq)]
+enum Playback {
+    /// libei: the RemoteDesktop portal, or a compositor's own socket.
+    Ei(EisSource),
+    /// The X server's XTest extension.
+    X11(X11Display),
 }
 
 struct Capture {
@@ -88,6 +100,8 @@ pub struct Backends {
     state: SharedState,
     state_directory: PathBuf,
     desktop: Desktop,
+    /// The X server of an X11 desktop.
+    x11: Option<X11Display>,
     capture: Option<Capture>,
     capture_events: mpsc::UnboundedSender<CaptureEvent>,
     capture_retry: Retry,
@@ -119,18 +133,13 @@ impl Backends {
         emulation_events: mpsc::UnboundedSender<EmulationEvent>,
         clipboard_events: mpsc::UnboundedSender<ClipboardEvent>,
     ) -> Self {
-        let desktop = desktop::decide(
-            &desktop::own_variables(),
-            None,
-            &desktop::runtime_directory(),
-            desktop::is_socket,
-            rinflow_input::ei_discover::find().is_some(),
-        );
+        let (desktop, x11) = look(None);
         log::info!("desktop: {desktop:?}");
         let backends = Self {
             state,
             state_directory,
             desktop,
+            x11,
             capture: None,
             capture_events,
             capture_retry: Retry::new(),
@@ -221,10 +230,11 @@ impl Backends {
             if self.bus.is_none() {
                 self.bus = zbus::Connection::session().await.ok();
             }
-            let desktop = detect_desktop(self.bus.as_ref()).await;
-            if desktop != self.desktop {
+            let (desktop, x11) = detect_desktop(self.bus.as_ref()).await;
+            if desktop != self.desktop || x11 != self.x11 {
                 log::info!("desktop changed: {:?} → {desktop:?}", self.desktop);
                 self.desktop = desktop;
+                self.x11 = x11;
                 self.stop_capture();
                 self.stop_emulation();
                 self.capture_retry.now();
@@ -234,10 +244,9 @@ impl Backends {
         }
         if self.capture.is_none()
             && self.capture_retry.due.is_some_and(|due| now >= due)
-            && self.desktop == Desktop::Wayland
+            && matches!(self.desktop, Desktop::Wayland | Desktop::X11)
         {
-            self.start_capture();
-            capture_started = true;
+            capture_started = self.start_capture();
         }
         if self.emulation.is_none()
             && self.emulation_retry.due.is_some_and(|due| now >= due)
@@ -267,23 +276,24 @@ impl Backends {
     }
 
     pub fn on_capture_event(&mut self, event: &CaptureEvent) {
+        let backend = self.capture_backend_name();
         match event {
             CaptureEvent::Ready => {
                 self.capture_retry.succeeded();
-                self.state.set_capture(BackendView::new(BackendState::Ready, "portal", Text::default()));
+                self.state.set_capture(BackendView::new(BackendState::Ready, backend, Text::default()));
             }
-            CaptureEvent::Prompting => self.state.set_capture(BackendView::new(BackendState::Prompting, "portal", msg("The desktop is asking whether Rinflow may capture input"))),
+            CaptureEvent::Prompting => self.state.set_capture(BackendView::new(BackendState::Prompting, backend, msg("The desktop is asking whether Rinflow may capture input"))),
             CaptureEvent::Denied(detail) => {
                 log::warn!("capture denied: {detail}");
                 self.stop_capture();
                 self.capture_retry.due = None;
-                self.state.set_capture(BackendView::new(BackendState::Denied, "portal", msg("This device can't control others: the permission was not given.")));
+                self.state.set_capture(BackendView::new(BackendState::Denied, backend, msg("This device can't control others: the permission was not given.")));
             }
             CaptureEvent::Lost(detail) => {
                 log::warn!("capture lost: {detail}");
                 self.stop_capture();
                 self.capture_retry.later();
-                self.state.set_capture(BackendView::new(BackendState::Waiting, "portal", detail.as_str()));
+                self.state.set_capture(BackendView::new(BackendState::Waiting, backend, detail.as_str()));
             }
             _ => {}
         }
@@ -325,23 +335,41 @@ impl Backends {
         self.stop_emulation();
     }
 
-    fn emulation_source(&self) -> Option<EisSource> {
+    fn emulation_source(&self) -> Option<Playback> {
         match self.desktop {
-            Desktop::Gamescope => rinflow_input::ei_discover::find().map(EisSource::Socket),
-            Desktop::Wayland => Some(EisSource::Portal),
-            Desktop::X11 | Desktop::None => None,
+            Desktop::Gamescope => rinflow_input::ei_discover::find().map(|socket| Playback::Ei(EisSource::Socket(socket))),
+            Desktop::Wayland => Some(Playback::Ei(EisSource::Portal)),
+            Desktop::X11 => self.x11.clone().map(Playback::X11),
+            Desktop::None => None,
         }
     }
 
     fn emulation_backend_name(&self) -> String {
         match self.desktop {
             Desktop::Gamescope => "gamescope",
+            Desktop::X11 => "x11",
             _ => "portal",
         }
         .into()
     }
 
-    fn start_capture(&mut self) {
+    fn capture_backend_name(&self) -> &'static str {
+        match self.desktop {
+            Desktop::X11 => "x11",
+            _ => "portal",
+        }
+    }
+
+    /// False when there is nothing to start it on (an X11 desktop whose
+    /// server is not known yet).
+    fn start_capture(&mut self) -> bool {
+        let x11 = match self.desktop {
+            Desktop::X11 => match self.x11.clone() {
+                Some(display) => Some(display),
+                None => return false,
+            },
+            _ => None,
+        };
         let (commands, receiver) = mpsc::unbounded_channel();
         let (events, mut own_events) = mpsc::unbounded_channel();
         let current = Rc::new(Cell::new(true));
@@ -358,10 +386,18 @@ impl Backends {
         }
         let directory = self.state_directory.clone();
         let task = tokio::task::spawn_local(async move {
-            rinflow_input::portal_capture::run(&directory, receiver, events).await;
+            match x11 {
+                Some(display) => rinflow_input::x11_capture::run(display, receiver, events).await,
+                None => rinflow_input::portal_capture::run(&directory, receiver, events).await,
+            }
         });
         self.capture = Some(Capture { commands, task, current });
-        self.state.set_capture(BackendView::new(BackendState::Waiting, "portal", msg("Connecting to the desktop's input capture portal…")));
+        self.state.set_capture(match self.desktop {
+            // The X server answers at once; there is nothing to wait for.
+            Desktop::X11 => waiting(),
+            _ => BackendView::new(BackendState::Waiting, "portal", msg("Connecting to the desktop's input capture portal…")),
+        });
+        true
     }
 
     /// Asks the backend to close its portal session, and aborts it only if
@@ -376,15 +412,15 @@ impl Backends {
         }
     }
 
-    fn start_emulation(&mut self, source: EisSource) {
+    fn start_emulation(&mut self, source: Playback) {
         let (input, receiver) = mpsc::unbounded_channel();
         let (shutdown, shutdown_rx) = oneshot::channel();
         let events = self.emulation_events.clone();
         let directory = self.state_directory.clone();
         let last_played = self.last_played.clone();
-        // The clipboard comes with the RemoteDesktop portal's session;
-        // gamescope has none to give.
-        let (clipboard, link) = if source == EisSource::Portal {
+        // The clipboard comes with the RemoteDesktop portal's session, and
+        // with any X server; gamescope has none to give.
+        let (clipboard, link) = if matches!(source, Playback::Ei(EisSource::Portal) | Playback::X11(_)) {
             let (commands, commands_rx) = mpsc::unbounded_channel();
             let _ = commands.send(ClipboardCommand::Files(self.files_enabled));
             let _ = commands.send(ClipboardCommand::Enable(self.clipboard_enabled));
@@ -395,7 +431,10 @@ impl Backends {
         };
         log::info!("starting emulation from {source:?}");
         let task = tokio::task::spawn_local(async move {
-            rinflow_input::ei_emulation::run(source, &directory, receiver, events, shutdown_rx, last_played, link).await;
+            match source {
+                Playback::Ei(source) => rinflow_input::ei_emulation::run(source, &directory, receiver, events, shutdown_rx, last_played, link).await,
+                Playback::X11(display) => rinflow_input::x11_emulation::run(display, receiver, events, shutdown_rx, last_played, link).await,
+            }
         });
         self.emulation = Some(Emulation { input, shutdown: Some(shutdown), task, clipboard });
         self.state.set_emulation(BackendView::new(BackendState::Waiting, &self.emulation_backend_name(), msg("Connecting input playback…")));
@@ -417,18 +456,13 @@ impl Backends {
     /// What this desktop can and cannot do, before anything is tried.
     fn describe_desktop(&self) {
         match self.desktop {
-            Desktop::Wayland => {
+            Desktop::Wayland | Desktop::X11 => {
                 self.state.set_capture(waiting());
                 self.state.set_emulation(waiting());
             }
             Desktop::Gamescope => {
                 self.state.set_capture(BackendView::new(BackendState::Unavailable, "gamescope", msg("In Gaming Mode this device can be controlled by others, but can't control them.")));
                 self.state.set_emulation(waiting());
-            }
-            Desktop::X11 => {
-                let message = msg("X11 sessions aren't supported yet; use a Wayland session.");
-                self.state.set_capture(unavailable("x11", message.clone()));
-                self.state.set_emulation(unavailable("x11", message));
             }
             Desktop::None => {
                 let message = msg("No graphical session was found.");

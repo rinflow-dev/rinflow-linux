@@ -57,8 +57,9 @@ enum Lease {
     /// A read is asking the peer; the others wait for it.
     Opening,
     Open(Arc<RemoteFileLease>),
-    /// A read failed: so do the rest, until every file is closed.
-    Broken,
+    /// A read failed: so do the rest, until every file is closed, with
+    /// this error.
+    Broken(Errno),
 }
 
 struct Offer {
@@ -128,7 +129,11 @@ impl Shared {
             ctime: since,
             crtime: since,
             kind,
-            perm: if folder { 0o500 } else { 0o400 },
+            // What a file made here would have. File managers copy the
+            // mode with the contents, so this is what a pasted file gets:
+            // read-only would leave the user unable to save it. The mount
+            // itself is read-only, and only this user can reach it.
+            perm: if folder { 0o755 } else { 0o644 },
             nlink: if folder { 2 } else { 1 },
             uid: self.owner.0,
             gid: self.owner.1,
@@ -163,7 +168,7 @@ impl Shared {
             let offer = tree.offers.get_mut(&id).ok_or(Errno::ESTALE)?;
             match &offer.lease {
                 Lease::Open(lease) => return Ok(lease.clone()),
-                Lease::Broken => return Err(Errno::EIO),
+                Lease::Broken(error) => return Err(*error),
                 Lease::Opening => tree = self.opened.wait(tree).unwrap(),
                 Lease::None => {
                     offer.lease = Lease::Opening;
@@ -183,7 +188,7 @@ impl Shared {
                         }
                         (Err(error), Some(offer)) => {
                             log::warn!("files from {peer} cannot be read: {error}");
-                            offer.lease = Lease::Broken;
+                            offer.lease = Lease::Broken(Errno::EIO);
                             Err(Errno::EIO)
                         }
                         (_, None) => Err(Errno::ESTALE),
@@ -196,15 +201,24 @@ impl Shared {
     }
 
     /// A read failed: the paste it belongs to is over.
-    fn broke(&self, id: u64, lease: &Arc<RemoteFileLease>, error: &str) {
+    /// A read of offer `id` failed: the error the file manager is to get
+    /// for it and for the rest of this paste.
+    fn broke(&self, id: u64, lease: &Arc<RemoteFileLease>, error: &str) -> Errno {
+        let errno = errno_for(error);
         let mut tree = self.tree.lock().unwrap();
-        if let Some(offer) = tree.offers.get_mut(&id)
-            && matches!(&offer.lease, Lease::Open(open) if Arc::ptr_eq(open, lease))
-        {
-            log::warn!("files from {}: {error}", offer.peer);
-            offer.lease = Lease::Broken;
-            lease.finish(error);
+        if let Some(offer) = tree.offers.get_mut(&id) {
+            match &offer.lease {
+                Lease::Open(open) if Arc::ptr_eq(open, lease) => {
+                    log::warn!("files from {}: {error}", offer.peer);
+                    offer.lease = Lease::Broken(errno);
+                    lease.finish(error);
+                }
+                // Another read got there first: its error stands.
+                Lease::Broken(first) => return *first,
+                _ => {}
+            }
         }
+        errno
     }
 
     /// Gives back leases nobody reads with any more, and forgets offers
@@ -222,7 +236,7 @@ impl Shared {
                     offer.lease = Lease::None;
                     offer.reached.fill(0);
                 }
-                Lease::Broken => {
+                Lease::Broken(_) => {
                     offer.lease = Lease::None;
                     offer.reached.fill(0);
                 }
@@ -359,10 +373,7 @@ impl Filesystem for Files {
             match lease.read(entry, at, ((end - at) as usize).min(MAX_READ_SIZE)) {
                 Ok(piece) if !piece.is_empty() => data.extend_from_slice(&piece),
                 Ok(_) => break,
-                Err(error) => {
-                    self.0.broke(id, &lease, &error);
-                    return reply.error(Errno::EIO);
-                }
+                Err(error) => return reply.error(self.0.broke(id, &lease, &error)),
             }
         }
         // The core's own count stalls when reads arrive out of order, as
@@ -546,12 +557,22 @@ impl RemoteFiles {
         let mut tree = self.shared.tree.lock().unwrap();
         for offer in tree.offers.values_mut() {
             offer.withdrawn = true;
-            if let Lease::Open(lease) = std::mem::replace(&mut offer.lease, Lease::Broken) {
+            if let Lease::Open(lease) = std::mem::replace(&mut offer.lease, Lease::Broken(Errno::ECANCELED)) {
                 lease.finish("cancelled");
             }
         }
     }
 
+}
+
+/// What a file manager is told when a read fails. The user stopping the
+/// paste (Cancel in the window, or sharing turned off) is `ECANCELED`,
+/// which GIO takes for a cancelled operation: GTK file managers stop
+/// without an error dialog. Anything else (the peer gone, a timeout, a file
+/// changed there) is an I/O error, and the file manager says the copy
+/// failed.
+fn errno_for(error: &str) -> Errno {
+    if error == "cancelled" { Errno::ECANCELED } else { Errno::EIO }
 }
 
 /// The paths as a `text/uri-list`: `file://` URLs, one per line.
@@ -574,6 +595,15 @@ pub fn uri_list(paths: &[PathBuf]) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_paste_the_user_stopped_is_cancelled_and_any_other_failure_an_error() {
+        assert_eq!(super::errno_for("cancelled"), fuser::Errno::ECANCELED);
+        assert_eq!(super::errno_for("remote file read timed out"), fuser::Errno::EIO);
+        assert_eq!(super::errno_for("heartbeat timeout"), fuser::Errno::EIO);
+        assert_eq!(super::errno_for("No such file or directory (os error 2)"), fuser::Errno::EIO);
+    }
+
     use super::*;
     use rinflow_core::FileEntry;
 

@@ -26,7 +26,7 @@ use rinflow_shell::settings::SettingsStore;
 use rinflow_shell::state::SharedState;
 use rinflow_shell::trust::TrustStore;
 use rinflow_input::{CaptureEvent, ClipboardEvent, EmulationEvent};
-use services::{AgentCommand, Services};
+use services::{AgentCommand, Notice, Services};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -158,6 +158,7 @@ async fn run() -> i32 {
     let _ = core.set_remote_control_allowed(preferences.sharing);
 
     let (commands_tx, mut commands) = mpsc::unbounded_channel::<AgentCommand>();
+    let (notices, notices_rx) = mpsc::unbounded_channel::<Notice>();
     let services = Rc::new(Services {
         core: Arc::downgrade(&core),
         state: state.clone(),
@@ -175,7 +176,7 @@ async fn run() -> i32 {
         rinflow_shell::i18n::system_languages(messages_locale.as_deref(), environment("LANGUAGE").as_deref()),
     );
     tray::spawn(services.clone());
-    notify::spawn(services);
+    notify::spawn(services, notices_rx);
     power::spawn(Arc::downgrade(&core));
 
     let (capture_events_tx, mut capture_events) = mpsc::unbounded_channel::<CaptureEvent>();
@@ -242,6 +243,14 @@ async fn run() -> i32 {
                         }
                     }
                     Some("files_offered") => files_offered(&event, &core, &state, &mut told_outdated),
+                    Some("files_not_shared") => {
+                        // Said right when the user copied them, not only in
+                        // the window, as on Windows.
+                        let body = files_not_shared_text(&event);
+                        log::info!("files copied here are not shared: {}", event["reason"].as_str().unwrap_or("?"));
+                        state.set_error(body.clone());
+                        let _ = notices.send(Notice { summary: msg("Can't share the copied files"), body });
+                    }
                     _ => {}
                 }
                 if matches!(
@@ -404,6 +413,20 @@ fn files_available(
     });
 }
 
+/// Why files copied here are not shared (the core's `files_not_shared`:
+/// past its limits), and what to do instead.
+fn files_not_shared_text(event: &serde_json::Value) -> Text {
+    let limit = event["limit"].as_u64().unwrap_or(0).to_string();
+    let message = if event["reason"].as_str() == Some("too_deep") {
+        // Translators: {limit} is a number of folder levels.
+        msg("The folders are nested more than {limit} levels deep to share. Zip them into one file, then copy that.")
+    } else {
+        // Translators: {limit} is a number, 10000.
+        msg("More than {limit} files and folders were copied, too many to share. Zip them into one file, then copy that.")
+    };
+    message.arg("limit", limit)
+}
+
 /// A peer without file streams offers files the old way, which would
 /// download them here at once: declined, and the window says why once.
 fn files_offered(event: &serde_json::Value, core: &Core, state: &SharedState, told: &mut bool) {
@@ -441,5 +464,19 @@ fn received_clipboard(event: &serde_json::Value, settings: &SettingsStore, core:
             backends.offer_clipboard(clipboard);
         }
         Err(error) => log::warn!("unreadable clipboard from a peer: {error}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::files_not_shared_text;
+    use serde_json::json;
+
+    #[test]
+    fn files_past_the_limits_say_which_limit_and_what_to_do() {
+        let many = files_not_shared_text(&json!({"event": "files_not_shared", "reason": "too_many_files", "limit": 10000}));
+        assert_eq!(many.translate(), "More than 10000 files and folders were copied, too many to share. Zip them into one file, then copy that.");
+        let deep = files_not_shared_text(&json!({"event": "files_not_shared", "reason": "too_deep", "limit": 32}));
+        assert_eq!(deep.translate(), "The folders are nested more than 32 levels deep to share. Zip them into one file, then copy that.");
     }
 }

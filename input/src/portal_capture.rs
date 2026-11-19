@@ -107,6 +107,8 @@ pub async fn run(
                         break;
                     }
                 }
+                // The compositor took the keyboard with the pointer.
+                Some(CaptureCommand::Engage) => {}
                 Some(CaptureCommand::Release { x, y }) => {
                     let Some(id) = activation.take() else { continue };
                     if let Err(error) = give_back(&portal, &session, &mut armed, &zones, &barriers, id, Some((x, y))).await {

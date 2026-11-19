@@ -2,6 +2,27 @@
 
 Notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- X11 sessions (Cinnamon, Xfce, MATE and other desktops): controlling other devices, being controlled, and the shared clipboard, with nothing to allow
+
+### Fixed
+
+- The window's own icons were missing on a desktop without `librsvg2-common`; the package now depends on it
+- The agent found no desktop when it was started by the window in a session that had not told systemd about itself
+- Files pasted from another device were read-only, so changes to them could not be saved
+- Cancelling a paste in the window made the file manager report an error; it now stops as when cancelled there
+- Copying more than 10,000 files or folders (or folders more than 32 levels deep) did nothing and said nothing; a notification and the window now say to zip them first, as on Windows
+
+### Known issues
+
+- X11 has been tested on Xfce and Cinnamon in a virtual machine, not yet on a physical one, nor with a touchpad, several monitors, or a Mac or Windows PC as the other device.
+- On X11 the pointer does not cross while a menu is open or something is being dragged, and scrolling goes by wheel notches.
+- Pasted files don't keep their permissions: a script arrives without its execute bit.
+- A cancelled or failed paste leaves the part already written, as the file manager does when its own copy is stopped.
+
 ## [0.0.1] - 2026-11-17
 
 First Linux version.

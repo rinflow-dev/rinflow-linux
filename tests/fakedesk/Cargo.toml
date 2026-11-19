@@ -1,6 +1,6 @@
 [package]
 name = "fakedesk"
-description = "A stand-in desktop for tests: the InputCapture and RemoteDesktop portals on D-Bus and real EIS servers, driven over a control socket"
+description = "A stand-in desktop for tests: the InputCapture and RemoteDesktop portals on D-Bus and real EIS servers, driven over a control socket; a stand-in user and application for an X server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,6 +14,10 @@ path = "src/main.rs"
 name = "injector"
 path = "src/bin/injector.rs"
 
+[[bin]]
+name = "xdesk"
+path = "src/bin/xdesk.rs"
+
 [dependencies]
 rinflow-core.workspace = true
 rinflow-input = { path = "../../input" }
@@ -24,3 +28,4 @@ env_logger = { version = "0.11", default-features = false, features = ["humantim
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 reis = { version = "0.7" }
+x11rb = { version = "0.14", default-features = false, features = ["xtest"] }

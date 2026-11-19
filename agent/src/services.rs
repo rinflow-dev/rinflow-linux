@@ -25,6 +25,13 @@ pub enum AgentCommand {
     Quit,
 }
 
+/// Something to tell the user at once, as a desktop notification (see
+/// `notify.rs`), untranslated.
+pub struct Notice {
+    pub summary: rinflow_shell::i18n::Text,
+    pub body: rinflow_shell::i18n::Text,
+}
+
 pub struct Services {
     pub core: Weak<Core>,
     pub state: SharedState,

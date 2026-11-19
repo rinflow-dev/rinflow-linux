@@ -1,5 +1,7 @@
-//! Desktop notifications from the agent, for what needs the user while no
-//! window is open: a device asking to pair.
+//! Desktop notifications from the agent: a device asking to pair (while no
+//! window is open), and what the user has to hear about at once whether a
+//! window is open or not ([`Notice`]: files copied here that cannot be
+//! shared).
 //!
 //! Sent straight to `org.freedesktop.Notifications` rather than through
 //! the notification portal: the portal tells applications apart by their
@@ -15,7 +17,7 @@
 //! Like the tray's labels, the text is translated here: nothing else is
 //! there to do it.
 
-use crate::services::Services;
+use crate::services::{Notice, Services};
 use futures_util::StreamExt;
 use rinflow_shell::i18n::{self, tr, trf};
 use std::collections::HashMap;
@@ -67,7 +69,7 @@ type PairingKey = (String, String);
 
 /// Starts the notifications task. Returns at once; without a session bus
 /// or a notification service there are simply none.
-pub fn spawn(services: Rc<Services>) {
+pub fn spawn(services: Rc<Services>, mut notices: tokio::sync::mpsc::UnboundedReceiver<Notice>) {
     tokio::task::spawn_local(async move {
         let bus = match zbus::Connection::session().await {
             Ok(bus) => bus,
@@ -123,7 +125,7 @@ pub fn spawn(services: Rc<Services>) {
                     // Translators: {name} is another device's name.
                     let summary = trf("{name} wants to pair", &[("name", &name)]);
                     let (open, reject) = (tr("Open Rinflow"), tr("Reject"));
-                    match show(&service, &summary, &tr("Open Rinflow to compare the pairing code."), &["default", &open, "reject", &reject]).await {
+                    match show(&service, &summary, &tr("Open Rinflow to compare the pairing code."), &["default", &open, "reject", &reject], 0).await {
                         Ok(id) => {
                             announced.insert(key.0.clone(), Instant::now());
                             pairing = Some((key, id));
@@ -169,6 +171,14 @@ pub fn spawn(services: Rc<Services>) {
                         }
                     }
                 }
+                notice = notices.recv() => {
+                    let Some(notice) = notice else { break };
+                    // Gone by itself after the desktop's usual time: it
+                    // says what happened, and the window says it too.
+                    if let Err(error) = show(&service, &notice.summary.translate(), &notice.body.translate(), &[], -1).await {
+                        log::info!("notice not shown: {error}");
+                    }
+                }
                 signal = closed.next() => {
                     let Some(signal) = signal else { break };
                     if let Ok(args) = signal.args() {
@@ -180,12 +190,12 @@ pub fn spawn(services: Rc<Services>) {
     });
 }
 
-/// Shows one notification under Rinflow's name, which stays until the
-/// user answers it.
-async fn show(service: &NotificationsProxy<'_>, summary: &str, body: &str, actions: &[&str]) -> zbus::Result<u32> {
+/// Shows one notification under Rinflow's name: until the user answers it
+/// (`expire` 0), or for the desktop's usual time (-1).
+async fn show(service: &NotificationsProxy<'_>, summary: &str, body: &str, actions: &[&str], expire: i32) -> zbus::Result<u32> {
     let mut hints = HashMap::new();
     hints.insert("desktop-entry", Value::from(crate::paths::APP_ID));
     // Normal urgency all the same: a request any device on the network can
     // send must not get past "Do Not Disturb".
-    service.notify("Rinflow", 0, crate::paths::APP_ID, summary, body, actions, hints, 0).await
+    service.notify("Rinflow", 0, crate::paths::APP_ID, summary, body, actions, hints, expire).await
 }

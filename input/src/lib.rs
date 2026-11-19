@@ -1,23 +1,29 @@
 //! Input on a Linux desktop, in both directions, behind two small
 //! interfaces the agent drives over channels:
 //!
-//! - **Capture** (this device drives a peer): the compositor puts invisible
-//!   barriers on the edges the agent names; when the pointer hits one the
-//!   compositor stops showing input to applications and hands it to us
-//!   over libei until we release it at a point of our choosing. That is the
-//!   `org.freedesktop.portal.InputCapture` portal (GNOME ≥ 45, Plasma ≥ 6.1).
-//! - **Emulation** (a peer drives this device): a libei sender connection,
-//!   obtained from the `RemoteDesktop` portal on a desktop, or by connecting
-//!   straight to gamescope's EIS socket in Steam Deck's Gaming Mode. The
-//!   same code plays the events either way.
+//! - **Capture** (this device drives a peer): invisible barriers on the
+//!   edges the agent names; when the pointer hits one, applications stop
+//!   seeing input and it comes here until we release it at a point of our
+//!   choosing. On Wayland the compositor does that and hands the input
+//!   over libei: the `org.freedesktop.portal.InputCapture` portal (GNOME
+//!   ≥ 45, Plasma ≥ 6.1). On X11 the X server does: XFixes barriers, grabs
+//!   and XInput raw events (`x11_capture.rs`).
+//! - **Emulation** (a peer drives this device): on Wayland a libei sender
+//!   connection, obtained from the `RemoteDesktop` portal on a desktop, or
+//!   by connecting straight to gamescope's EIS socket in Steam Deck's
+//!   Gaming Mode; the same code plays the events either way. On X11 the
+//!   XTest extension (`x11_emulation.rs`).
 //!
-//! - **Clipboard**: rides on the emulation backend's RemoteDesktop session
-//!   (`org.freedesktop.portal.Clipboard`), so it is there exactly when a
-//!   peer can drive this desktop through the portal.
+//! - **Clipboard**: on Wayland it rides on the emulation backend's
+//!   RemoteDesktop session (`org.freedesktop.portal.Clipboard`), so it is
+//!   there exactly when a peer can drive this desktop through the portal.
+//!   On X11 it is the CLIPBOARD selection (`x11_clipboard.rs`), there for
+//!   any program.
 //!
-//! Geometry is in logical points, the core's unit; the portals speak logical
-//! pixels too, so nothing is scaled here.
+//! Geometry is in logical points, the core's unit. The portals speak
+//! logical pixels too; the X server speaks pixels, scaled in `x11_common.rs`.
 
+mod clipboard_formats;
 pub mod keymap;
 
 #[cfg(target_os = "linux")]
@@ -32,6 +38,17 @@ pub mod portal_capture;
 pub mod portal_clipboard;
 #[cfg(target_os = "linux")]
 pub mod token;
+#[cfg(target_os = "linux")]
+pub mod x11_capture;
+#[cfg(target_os = "linux")]
+mod x11_clipboard;
+#[cfg(target_os = "linux")]
+mod x11_common;
+#[cfg(target_os = "linux")]
+pub mod x11_emulation;
+
+#[cfg(target_os = "linux")]
+pub use x11_common::X11Display;
 
 use rinflow_core::layout::{Display, Side};
 
@@ -53,6 +70,11 @@ pub struct Barrier {
 pub enum CaptureCommand {
     /// Replace the barriers (the portals on this device's edges changed).
     SetBarriers(Vec<Barrier>),
+    /// The pointer that hit a barrier now drives a peer: the keyboard goes
+    /// with it. The portal's capture takes both at the barrier; on X11 the
+    /// keyboard is left to the desktop until this, so an edge hit that
+    /// leads nowhere does not disturb the application in use.
+    Engage,
     /// Give the pointer back to this desktop at this logical point; the
     /// capture ends.
     Release { x: f64, y: f64 },

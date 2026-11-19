@@ -39,7 +39,7 @@ Works with [Rinflow for macOS](https://github.com/rinflow-dev/rinflow-macos) and
 
 ## Requirements
 
-- GNOME 45 or KDE Plasma 6.1, or later, in a Wayland session
+- GNOME 45 or KDE Plasma 6.1, or later, in a Wayland session; or any desktop in an X11 session (Cinnamon, Xfce, MATE and others)
 - Debian 13, Ubuntu 24.04, or later (x86_64 or arm64)
 - Another computer running Rinflow, on the same local network
 
@@ -53,7 +53,7 @@ sudo apt install ./rinflow_0.0.1-1_amd64.deb
 
 ## Getting started
 
-1. Open Rinflow on both computers. The desktop asks whether Rinflow may control the pointer and keyboard: allow it.
+1. Open Rinflow on both computers. On Wayland the desktop asks whether Rinflow may control the pointer and keyboard: allow it.
 2. Select **Connect** next to the other computer, and check that both show the same six-digit code.
 3. Drag the other computer to the side of your screen where it sits.
 4. Push the pointer past that edge.

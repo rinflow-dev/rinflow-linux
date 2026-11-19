@@ -25,7 +25,7 @@ PO := $(addprefix po/,$(addsuffix .po,$(LINGUAS)))
 MO := $(patsubst po/%.po,target/locale/%/LC_MESSAGES/rinflow.mo,$(PO))
 DATA := target/data/$(APP_ID).desktop target/data/$(APP_ID).metainfo.xml
 
-.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing screenshots e2e-crossing e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall deb dev-desktop undev-desktop locale pot check
+.PHONY: all build release test check-po e2e e2e-tray e2e-notify e2e-i18n e2e-window-i18n e2e-canvas e2e-window-pairing screenshots e2e-crossing e2e-x11 e2e-clipboard e2e-systemd e2e-gnome e2e-gnome-clipboard e2e-persist e2e-controlled run run-agent stop clean install uninstall deb dev-desktop undev-desktop locale pot check
 
 # `make` alone runs the window; `make all` only builds.
 .DEFAULT_GOAL := run
@@ -63,6 +63,13 @@ e2e-clipboard: build
 # when it is gone. tests/fakedesk --systemd stands in for the manager.
 e2e-systemd: build
 	python3 -I tests/e2e_systemd.py ./target/debug/rinflow-agent ./target/debug/fakedesk
+
+# The crossing and the clipboard on X11: two agents on two X servers (Xvfb),
+# a stand-in user and application on each (tests/fakedesk xdesk), a real
+# GTK application for the clipboard, then a desktop at 200 %. Needs Xvfb,
+# xrdb (x11-xserver-utils), dbus-daemon, python3-gi and gir1.2-gtk-4.0.
+e2e-x11: build
+	RINFLOW_TEST_LOG=debug python3 -I tests/e2e_x11.py ./target/debug/rinflow-agent ./target/debug/xdesk
 
 # The agent's text goes out untranslated (the window translates it), whatever
 # the agent's environment; the language setting is kept and checked.

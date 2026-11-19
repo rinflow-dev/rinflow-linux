@@ -39,7 +39,7 @@
 
 ## 系统要求
 
-- GNOME 45 或 KDE Plasma 6.1 及以上，Wayland 会话
+- GNOME 45 或 KDE Plasma 6.1 及以上的 Wayland 会话；或任意桌面的 X11 会话（Cinnamon、Xfce、MATE 等）
 - Debian 13、Ubuntu 24.04 及以上（x86_64 或 arm64）
 - 同一局域网内另一台运行 Rinflow 的电脑
 
@@ -53,7 +53,7 @@ sudo apt install ./rinflow_0.0.1-1_amd64.deb
 
 ## 开始使用
 
-1. 在两台电脑上打开 Rinflow。桌面会询问是否允许 Rinflow 控制指针和键盘，选择允许。
+1. 在两台电脑上打开 Rinflow。在 Wayland 上，桌面会询问是否允许 Rinflow 控制指针和键盘，选择允许。
 2. 点击另一台电脑旁的**连接**，确认两边显示的六位数字相同。
 3. 把另一台电脑拖到它在你屏幕旁的实际位置。
 4. 把指针推过那一侧的屏幕边缘。

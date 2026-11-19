@@ -93,6 +93,7 @@ impl AgentClient {
 
     async fn run(&self) {
         let path = socket_path();
+        lend_session_to_systemd();
         let mut spawned = false;
         let mut attempts = 0u32;
         loop {
@@ -339,6 +340,62 @@ pub fn keep_language_list(list: Option<String>) {
 /// The systemd user unit installed with the agent.
 const AGENT_UNIT: &str = "rinflow-agent.service";
 
+/// The variables that say which desktop a process is on, and how to
+/// reach it.
+const SESSION_VARIABLES: [&str; 6] = ["DISPLAY", "XAUTHORITY", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE", "DBUS_SESSION_BUS_ADDRESS"];
+
+/// Tells the systemd user manager which desktop this window is on, when
+/// the manager knows of none. The agent is a user service and learns of
+/// the desktop from the manager. GNOME, Plasma and distributions' X
+/// session scripts tell it as they start; a session started by hand
+/// (`startx` with a window manager), or one without the user bus, does
+/// not, and the agent would say there is no desktop to the very window
+/// that is on it. A manager that knows a display is left alone: it may be
+/// another session's, and what it knows is that session's to say.
+fn lend_session_to_systemd() {
+    let systemctl = |args: &[&str]| {
+        std::process::Command::new("systemctl")
+            .arg("--user")
+            .args(args)
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+    };
+    // Only where the agent is the installed service: one started from a
+    // source tree or a sandbox is this window's child, and has its
+    // environment (and there may be no systemd at all).
+    let installed = systemctl(&["show", "--property=LoadState", "--value", AGENT_UNIT]).is_some_and(|shown| String::from_utf8_lossy(&shown.stdout).trim() == "loaded");
+    if !installed {
+        return;
+    }
+    let Some(shown) = systemctl(&["show-environment"]) else { return };
+    let ours = |name: &str| std::env::var_os(name).is_some_and(|value| !value.is_empty());
+    let missing = session_variables_to_lend(&String::from_utf8_lossy(&shown.stdout), ours);
+    if missing.is_empty() {
+        return;
+    }
+    let mut arguments = vec!["import-environment"];
+    arguments.extend(&missing);
+    if systemctl(&arguments).is_some() {
+        log::info!("told the systemd user manager about this session: {missing:?}");
+    }
+}
+
+/// The session variables to hand to a manager whose environment is
+/// `known` (`NAME=value` lines): those set here (`ours`) that it lacks,
+/// and none at all when it already names a display, or this process has
+/// none to name.
+fn session_variables_to_lend(known: &str, ours: impl Fn(&str) -> bool) -> Vec<&'static str> {
+    let knows = |name: &str| known.lines().any(|line| line.strip_prefix(name).is_some_and(|rest| rest.starts_with('=')));
+    let display = |has: &dyn Fn(&str) -> bool| has("DISPLAY") || has("WAYLAND_DISPLAY");
+    if display(&knows) || !display(&ours) {
+        return Vec::new();
+    }
+    SESSION_VARIABLES.into_iter().filter(|name| ours(name) && !knows(name)).collect()
+}
+
 /// Starts the agent next to this binary (or from `PATH`), detached, so it
 /// outlives the window. When the user service runs that same program, it
 /// is started through systemd instead: an agent started here would beat
@@ -413,4 +470,32 @@ fn start_through_systemd(program: &std::path::Path) -> bool {
         log::info!("started {AGENT_UNIT}");
     }
     started
+}
+
+#[cfg(test)]
+mod tests {
+    use super::session_variables_to_lend;
+
+    #[test]
+    fn a_manager_without_a_display_is_told_of_this_one() {
+        let x11 = |name: &str| matches!(name, "DISPLAY" | "XAUTHORITY" | "XDG_SESSION_TYPE" | "DBUS_SESSION_BUS_ADDRESS");
+        // A session started by hand: the manager knows nothing of it.
+        assert_eq!(
+            session_variables_to_lend("HOME=/home/u\nLANG=C.UTF-8\n", x11),
+            ["DISPLAY", "XAUTHORITY", "XDG_SESSION_TYPE", "DBUS_SESSION_BUS_ADDRESS"]
+        );
+        // What it has already is its own.
+        assert_eq!(
+            session_variables_to_lend("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus\nXDG_SESSION_TYPE=tty\n", x11),
+            ["DISPLAY", "XAUTHORITY"]
+        );
+        // A desktop that told the manager itself, or another session's
+        // display: nothing is added to it.
+        assert!(session_variables_to_lend("DISPLAY=:0\n", x11).is_empty());
+        assert!(session_variables_to_lend("WAYLAND_DISPLAY=wayland-0\nXDG_SESSION_TYPE=wayland\n", x11).is_empty());
+        // DISPLAYMANAGER is not DISPLAY.
+        assert_eq!(session_variables_to_lend("DISPLAYMANAGER=lightdm\n", x11).len(), 4);
+        // Nothing to tell from a process without a display.
+        assert!(session_variables_to_lend("", |name| name == "XDG_SESSION_TYPE").is_empty());
+    }
 }

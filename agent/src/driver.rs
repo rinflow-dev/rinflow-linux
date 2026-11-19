@@ -382,6 +382,10 @@ impl Driver {
             pointer_held: false,
             repeat: None,
         });
+        // The keyboard goes where the pointer went.
+        if let Some(capture) = &self.capture {
+            let _ = capture.send(CaptureCommand::Engage);
+        }
         self.send(absolute_move(arrival_x, arrival_y));
         self.state.set_driving(Some(peer_id));
     }

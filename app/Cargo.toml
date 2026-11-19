@@ -37,13 +37,15 @@ extended-description = """Rinflow shares one mouse and keyboard between the comp
 move the pointer off the edge of this screen and it appears on the Mac, \
 Windows PC, Linux machine or Steam Deck next to it. This package holds the \
 background agent and the settings window for Linux desktops (GNOME and KDE \
-on Wayland, through the input portals)."""
+on Wayland, through the input portals; any desktop on X11)."""
 section = "utils"
 # prerm: stops the running agent and window before the files go.
 maintainer-scripts = "debian/"
 priority = "optional"
 # fuse3: pasting files copied on another device (fusermount3).
-depends = "$auto, libadwaita-1-0 (>= 1.5), fuse3"
+# librsvg2-common: the loader GTK draws this program's own icons with (they
+# are SVG); GTK only recommends it, and a minimal desktop is without.
+depends = "$auto, libadwaita-1-0 (>= 1.5), fuse3, librsvg2-common"
 assets = [
     ["target/release/rinflow", "usr/bin/", "755"],
     ["target/release/rinflow-agent", "usr/bin/", "755"],

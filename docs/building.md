@@ -16,6 +16,8 @@ make test       # unit tests of the workspace
 make e2e        # two agents on this machine: discovery, pairing, connection, placement sync (no display needed)
 make e2e-crossing  # the crossing itself, with tests/fakedesk standing in for the compositors (needs dbus-daemon)
 make e2e-clipboard # the clipboard both ways through the fake Clipboard portal (needs dbus-daemon)
+make e2e-x11       # the crossing and the clipboard on X11: two agents on two Xvfb servers, a GTK application copying and pasting,
+                   # a desktop at 200 % (needs Xvfb, xrdb, dbus-daemon, python3-gi, gir1.2-gtk-4.0)
 make e2e-systemd   # the user service started before the desktop picks it up through systemd (needs dbus-daemon)
 make e2e-gnome     # the crossing on two real GNOME desktops (Mutter headless + GNOME portal backend; see build-aux/Dockerfile.ubuntu-24.04)
 make e2e-gnome-clipboard  # the clipboard between two real GNOME desktops, GTK copying and pasting

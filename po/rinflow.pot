@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 15:35+0900\n"
+"POT-Creation-Date: 2026-11-17 19:28+0900\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,86 +17,100 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: agent/src/backends.rs:275
+#: agent/src/backends.rs:285
 msgid "The desktop is asking whether Rinflow may capture input"
 msgstr ""
 
-#: agent/src/backends.rs:280
+#: agent/src/backends.rs:290
 msgid "This device can't control others: the permission was not given."
 msgstr ""
 
-#: agent/src/backends.rs:302
+#: agent/src/backends.rs:312
 msgid "The desktop is asking whether Rinflow may control this device"
 msgstr ""
 
-#: agent/src/backends.rs:311
+#: agent/src/backends.rs:321
 msgid "Other devices can't control this one: the permission was not given."
 msgstr ""
 
-#: agent/src/backends.rs:364
+#: agent/src/backends.rs:398
 msgid "Connecting to the desktop's input capture portal…"
 msgstr ""
 
-#: agent/src/backends.rs:401
+#: agent/src/backends.rs:440
 msgid "Connecting input playback…"
 msgstr ""
 
-#: agent/src/backends.rs:425
+#: agent/src/backends.rs:464
 msgid ""
 "In Gaming Mode this device can be controlled by others, but can't control "
 "them."
 msgstr ""
 
-#: agent/src/backends.rs:429
-msgid "X11 sessions aren't supported yet; use a Wayland session."
-msgstr ""
-
-#: agent/src/backends.rs:434
+#: agent/src/backends.rs:468
 msgid "No graphical session was found."
 msgstr ""
 
+#: agent/src/main.rs:252
+msgid "Can't share the copied files"
+msgstr ""
+
 #. Translators: {detail} is the system's error message, in English.
-#: agent/src/main.rs:370
+#: agent/src/main.rs:379
 msgid ""
 "Rinflow couldn't use UDP port {port}; another copy of Rinflow may be "
 "running. Quit it, then restart the agent. ({detail})"
 msgstr ""
 
-#: agent/src/main.rs:374
+#: agent/src/main.rs:383
 msgid "Rinflow's core didn't start: {detail}"
 msgstr ""
 
-#: agent/src/main.rs:420
+#. Translators: {limit} is a number of folder levels.
+#: agent/src/main.rs:422
+msgid ""
+"The folders are nested more than {limit} levels deep to share. Zip them into "
+"one file, then copy that."
+msgstr ""
+
+#. Translators: {limit} is a number, 10000.
+#: agent/src/main.rs:425
+msgid ""
+"More than {limit} files and folders were copied, too many to share. Zip them "
+"into one file, then copy that."
+msgstr ""
+
+#: agent/src/main.rs:443
 msgid ""
 "Files copied on {name} can't be pasted here: update Rinflow on that device."
 msgstr ""
 
 #. Translators: {name} is another device's name.
-#: agent/src/notify.rs:124
+#: agent/src/notify.rs:126
 msgid "{name} wants to pair"
 msgstr ""
 
-#: agent/src/notify.rs:125 agent/src/tray.rs:133
+#: agent/src/notify.rs:127 agent/src/tray.rs:133
 msgid "Open Rinflow"
 msgstr ""
 
-#: agent/src/notify.rs:125 app/src/window.rs:787
+#: agent/src/notify.rs:127 app/src/window.rs:787
 msgid "Reject"
 msgstr ""
 
-#: agent/src/notify.rs:126
+#: agent/src/notify.rs:128
 msgid "Open Rinflow to compare the pairing code."
 msgstr ""
 
-#: agent/src/services.rs:43
+#: agent/src/services.rs:50
 msgid "launch_at_login must be true or false"
 msgstr ""
 
-#: agent/src/services.rs:45
+#: agent/src/services.rs:52
 msgid "Couldn't change “Start when I sign in”: {error}"
 msgstr ""
 
-#: agent/src/services.rs:105
+#: agent/src/services.rs:112
 msgid "The core is shutting down"
 msgstr ""
 
@@ -139,15 +153,15 @@ msgstr ""
 msgid "Quit"
 msgstr ""
 
-#: app/src/agent.rs:127
+#: app/src/agent.rs:128
 msgid "The agent couldn't be started: {error}"
 msgstr ""
 
-#: app/src/agent.rs:132
+#: app/src/agent.rs:133
 msgid "The agent isn't answering ({error})"
 msgstr ""
 
-#: app/src/agent.rs:163
+#: app/src/agent.rs:164
 msgid ""
 "The agent and this window are different versions; update both ({version} / "
 "{protocol})"
